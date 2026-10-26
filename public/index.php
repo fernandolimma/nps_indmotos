@@ -48,6 +48,10 @@ Router::get('/relatorios/(\d+)', 'RelatoriosController@detalhe');
 
 Router::get('/configuracoes', 'ConfiguracoesController@index');
 Router::post('/configuracoes/save', 'ConfiguracoesController@save');
+Router::post('/configuracoes/test-evolution', 'ConfiguracoesController@testEvolution');
+Router::post('/configuracoes/evolution/create-instance', 'ConfiguracoesController@createEvolutionInstance');
+Router::post('/configuracoes/evolution/refresh-qr', 'ConfiguracoesController@refreshEvolutionQr');
+Router::post('/configuracoes/evolution/confirm-connection', 'ConfiguracoesController@confirmEvolutionConnection');
 Router::post('/configuracoes/create-user', 'ConfiguracoesController@createUser');
 Router::get('/configuracoes/(\d+)/delete-user', 'ConfiguracoesController@deleteUser');
 

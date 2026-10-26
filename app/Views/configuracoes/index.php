@@ -4,6 +4,8 @@
  * @var array $usuarios
  * @var string $csrf_token
  * @var string|null $logo_url
+ * @var string|null $evolution_qr
+ * @var string|null $evolution_pairing_code
  */
 ?>
 <?php ob_start(); ?>
@@ -95,7 +97,70 @@
                     </div>
 
                     <button type="submit" class="btn btn-primary">Salvar</button>
+                    <button
+                        type="submit"
+                        class="btn btn-outline-primary"
+                        formaction="<?php echo App\Core\Router::baseUrl('/configuracoes/test-evolution'); ?>"
+                    >
+                        Testar conexão da Evolution API
+                    </button>
                 </form>
+
+                <hr>
+                <h6>Instalação local com Docker</h6>
+                <p class="text-muted">
+                    Inicie o Docker Desktop e execute <code>.\docker\setup.ps1</code> no PowerShell, na pasta do projeto.
+                    Depois, informe o nome da instância e crie a conexão abaixo.
+                </p>
+                <form action="<?php echo App\Core\Router::baseUrl('/configuracoes/evolution/create-instance'); ?>" method="POST" class="mb-3">
+                    <input type="hidden" name="csrf_token" value="<?= App\Core\View::escape($csrf_token) ?>">
+                    <label for="evolution_instance_docker" class="form-label">Nome da instância WhatsApp</label>
+                    <input
+                        type="text"
+                        class="form-control mb-2"
+                        id="evolution_instance_docker"
+                        name="evolution_instance"
+                        value="<?= App\Core\View::escape($config['evolution_instance'] ?? 'nps-indmotos') ?>"
+                        pattern="[A-Za-z0-9_-]{1,100}"
+                        required
+                    >
+                    <button type="submit" class="btn btn-success">Criar instância e gerar QR code</button>
+                </form>
+
+                <?php if (!empty($evolution_qr) || !empty($evolution_pairing_code)): ?>
+                    <div class="border rounded p-3 text-center mb-3">
+                        <p class="mb-2">No celular, abra o WhatsApp em <strong>Dispositivos conectados &gt; Conectar dispositivo</strong> e escaneie este código:</p>
+                        <?php if (!empty($evolution_qr)): ?>
+                            <img
+                                src="<?= App\Core\View::escape($evolution_qr) ?>"
+                                alt="QR code para conectar o WhatsApp"
+                                class="img-fluid"
+                                style="max-width: 280px;"
+                            >
+                        <?php endif; ?>
+                        <?php if (!empty($evolution_pairing_code)): ?>
+                            <p class="mb-0"><strong>Código de pareamento:</strong> <?= App\Core\View::escape($evolution_pairing_code) ?></p>
+                        <?php endif; ?>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <form action="<?php echo App\Core\Router::baseUrl('/configuracoes/evolution/refresh-qr'); ?>" method="POST">
+                            <input type="hidden" name="csrf_token" value="<?= App\Core\View::escape($csrf_token) ?>">
+                            <input type="hidden" name="evolution_instance" value="<?= App\Core\View::escape($config['evolution_instance'] ?? 'nps-indmotos') ?>">
+                            <button type="submit" class="btn btn-outline-secondary">Gerar outro QR code</button>
+                        </form>
+                        <form action="<?php echo App\Core\Router::baseUrl('/configuracoes/evolution/confirm-connection'); ?>" method="POST">
+                            <input type="hidden" name="csrf_token" value="<?= App\Core\View::escape($csrf_token) ?>">
+                            <input type="hidden" name="evolution_instance" value="<?= App\Core\View::escape($config['evolution_instance'] ?? 'nps-indmotos') ?>">
+                            <button type="submit" class="btn btn-primary">Já conectei: verificar e ativar WhatsApp</button>
+                        </form>
+                    </div>
+                <?php else: ?>
+                    <form action="<?php echo App\Core\Router::baseUrl('/configuracoes/evolution/refresh-qr'); ?>" method="POST">
+                        <input type="hidden" name="csrf_token" value="<?= App\Core\View::escape($csrf_token) ?>">
+                        <input type="hidden" name="evolution_instance" value="<?= App\Core\View::escape($config['evolution_instance'] ?? 'nps-indmotos') ?>">
+                        <button type="submit" class="btn btn-outline-secondary">Gerar QR code para instância existente</button>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
     </div>

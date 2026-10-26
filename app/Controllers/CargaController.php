@@ -81,16 +81,17 @@ class CargaController extends Controller
                 'Modelo' => 'modelo_veiculo',
                 'Pessoa' => 'nome_cliente',
                 'E-mail Pessoa' => 'email_cliente',
-                'Telefone Pessoa' => 'telefone_whatsapp'
+                'Telefone Celular' => 'telefone_whatsapp'
             ];
 
-            $imported = 0;
+            $clientesParaImportar = [];
             
             foreach ($rows as $row) {
                 if (empty($row[array_search('Nº O.S.', $headers)])) continue;
 
                 $data = [];
                 foreach ($headers as $index => $header) {
+                    $header = trim((string) $header);
                     if (isset($headerMap[$header])) {
                         $data[$headerMap[$header]] = $row[$index] ?? null;
                     }
@@ -98,15 +99,16 @@ class CargaController extends Controller
 
                 if (empty($data['numero_os']) || empty($data['email_cliente'])) continue;
 
-                $token = bin2hex(random_bytes(16));
-                $dataLimite = date('Y-m-d', strtotime('+' . ($config['dias_validade'] ?? 7) . ' days'));
                 $telefoneWhatsapp = trim((string) ($data['telefone_whatsapp'] ?? ''));
+                if ($telefoneWhatsapp !== '') {
+                    $telefoneWhatsapp = \App\Services\BrazilianPhoneNumber::normalize($telefoneWhatsapp);
+                }
                 
                 if ($data['data_conclusao']) {
                     $data['data_conclusao'] = \DateTime::createFromFormat('d/m/Y', $data['data_conclusao'])?->format('Y-m-d');
                 }
 
-                $this->clienteOS->create([
+                $clientesParaImportar[] = [
                     'nome_cliente' => $data['nome_cliente'],
                     'email_cliente' => $data['email_cliente'],
                     'telefone_whatsapp' => $telefoneWhatsapp !== '' ? $telefoneWhatsapp : null,
@@ -114,15 +116,28 @@ class CargaController extends Controller
                     'tipo_os' => $data['tipo_os'],
                     'numero_os' => $data['numero_os'],
                     'data_conclusao' => $data['data_conclusao'],
-                    'token_unico' => $token,
-                    'data_limite' => $dataLimite,
                     'status_whatsapp' => $telefoneWhatsapp !== '' ? 'nao_enviado' : 'nao_disponivel'
-                ]);
-                
-                $imported++;
+                ];
             }
 
-            Session::flash('success', "$imported clientes importados com sucesso!");
+            foreach ($clientesParaImportar as $cliente) {
+                $token = bin2hex(random_bytes(16));
+                $dataLimite = date('Y-m-d', strtotime('+' . ($config['dias_validade'] ?? 7) . ' days'));
+                $this->clienteOS->create([
+                    'nome_cliente' => $cliente['nome_cliente'],
+                    'email_cliente' => $cliente['email_cliente'],
+                    'telefone_whatsapp' => $cliente['telefone_whatsapp'],
+                    'modelo_veiculo' => $cliente['modelo_veiculo'],
+                    'tipo_os' => $cliente['tipo_os'],
+                    'numero_os' => $cliente['numero_os'],
+                    'data_conclusao' => $cliente['data_conclusao'],
+                    'token_unico' => $token,
+                    'data_limite' => $dataLimite,
+                    'status_whatsapp' => $cliente['status_whatsapp']
+                ]);
+            }
+
+            Session::flash('success', count($clientesParaImportar) . ' clientes importados com sucesso!');
         } catch (\Throwable $e) {
             Session::flash('error', 'Erro ao processar arquivo: ' . $e->getMessage());
         }
@@ -149,6 +164,7 @@ class CargaController extends Controller
         $falhasWhatsapp = 0;
         $evolution = null;
         $erros = [];
+        $detalheErroWhatsapp = null;
 
         if (!empty($config['evolution_enabled'])) {
             try {
@@ -225,6 +241,7 @@ class CargaController extends Controller
                     $enviadosWhatsapp++;
                 } catch (\Throwable $e) {
                     error_log('Erro ao enviar WhatsApp pela Evolution API para o registro ' . $cliente['id'] . ': ' . $e->getMessage());
+                    $detalheErroWhatsapp ??= $e->getMessage();
                     $this->clienteOS->updateStatusWhatsapp($cliente['id'], 'retornado_erro');
                     $falhasWhatsapp++;
                 }
@@ -238,7 +255,8 @@ class CargaController extends Controller
         if (!empty($config['evolution_enabled'])) {
             $resumo .= " e $enviadosWhatsapp WhatsApps enviados";
             if ($falhasWhatsapp > 0) {
-                $erros[] = "$falhasWhatsapp WhatsApps com erro";
+                $erros[] = "$falhasWhatsapp WhatsApps com erro"
+                    . ($detalheErroWhatsapp !== null ? ' (primeiro erro: ' . $detalheErroWhatsapp . ')' : '');
             }
         }
 

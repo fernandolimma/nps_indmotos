@@ -27,7 +27,7 @@
                         <label for="arquivo" class="form-label">Arquivo Excel (.xlsx)</label>
                         <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".xlsx" required>
                         <div class="form-text">
-                            Colunas necessárias: Tipo O.S., Nº O.S., Data Conclusão, Modelo, Pessoa, E-mail Pessoa. Para envio por WhatsApp, inclua também Telefone Pessoa com DDD.
+                            Colunas necessárias: Tipo O.S., Nº O.S., Data Conclusão, Modelo, Pessoa, E-mail Pessoa. Para envio por WhatsApp, inclua Telefone Celular com DDD.
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary">Importar</button>

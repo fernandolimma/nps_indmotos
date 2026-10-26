@@ -28,7 +28,9 @@ class ConfiguracoesController extends Controller
             'config' => $config,
             'usuarios' => $usuarios,
             'csrf_token' => $this->generateCsrfToken(),
-            'logo_url' => $this->resolveLogoUrl($config)
+            'logo_url' => $this->resolveLogoUrl($config),
+            'evolution_qr' => Session::get('evolution_qr'),
+            'evolution_pairing_code' => Session::get('evolution_pairing_code')
         ]);
     }
 
@@ -77,6 +79,135 @@ class ConfiguracoesController extends Controller
         $this->redirect('/configuracoes');
     }
 
+    public function testEvolution(): void
+    {
+        if (!$this->isPost()) {
+            $this->redirect('/configuracoes');
+        }
+
+        if (!$this->validateCsrfToken($this->getPost('csrf_token'))) {
+            Session::flash('error', 'Token inválido');
+            $this->redirect('/configuracoes');
+        }
+
+        try {
+            $configAtual = $this->configuracao->get();
+            $apiKey = trim((string) $this->getPost('evolution_api_key', ''));
+            if ($apiKey === '') {
+                $apiKey = (string) ($configAtual['evolution_api_key'] ?? '');
+            }
+
+            $evolution = new \App\Services\EvolutionApi(
+                trim((string) $this->getPost('evolution_url', '')),
+                $apiKey,
+                trim((string) $this->getPost('evolution_instance', ''))
+            );
+            Session::flash('success', $evolution->checkConnection());
+        } catch (\Throwable $e) {
+            Session::flash('error', 'Falha ao validar a Evolution API: ' . $e->getMessage());
+        }
+
+        $this->redirect('/configuracoes');
+    }
+
+    public function createEvolutionInstance(): void
+    {
+        if (!$this->isPost()) {
+            $this->redirect('/configuracoes');
+        }
+
+        if (!$this->validateCsrfToken($this->getPost('csrf_token'))) {
+            Session::flash('error', 'Token inválido');
+            $this->redirect('/configuracoes');
+        }
+
+        try {
+            $configAtual = $this->configuracao->get();
+            $instance = $this->getEvolutionInstanceName($configAtual);
+            $evolution = $this->getLocalEvolutionApi($instance);
+            $this->saveLocalEvolutionSettings($instance);
+            $evolution->createInstance();
+            $qrCode = $evolution->getQrCode();
+            Session::set('evolution_qr', $qrCode['base64']);
+            Session::set('evolution_pairing_code', $qrCode['code']);
+            Session::flash('success', 'Instância criada. Escaneie o QR code com o WhatsApp para conectar.');
+        } catch (\Throwable $e) {
+            Session::flash('error', 'Não foi possível criar a instância ou gerar o QR code: ' . $e->getMessage());
+        }
+
+        $this->redirect('/configuracoes');
+    }
+
+    public function refreshEvolutionQr(): void
+    {
+        if (!$this->isPost()) {
+            $this->redirect('/configuracoes');
+        }
+
+        if (!$this->validateCsrfToken($this->getPost('csrf_token'))) {
+            Session::flash('error', 'Token inválido');
+            $this->redirect('/configuracoes');
+        }
+
+        try {
+            $instance = $this->getEvolutionInstanceName($this->configuracao->get());
+            $evolution = $this->getLocalEvolutionApi($instance);
+            $this->saveLocalEvolutionSettings($instance);
+            if (strtolower($evolution->getConnectionState()) === 'open') {
+                $this->configuracao->update([
+                    'evolution_enabled' => 1,
+                    'evolution_url' => 'http://127.0.0.1:8080',
+                    'evolution_instance' => $instance,
+                    'evolution_api_key' => $this->getLocalEvolutionApiKey()
+                ]);
+                Session::remove('evolution_qr');
+                Session::remove('evolution_pairing_code');
+                Session::flash('success', 'O WhatsApp já estava conectado; o envio por WhatsApp foi ativado.');
+                $this->redirect('/configuracoes');
+            }
+
+            $qrCode = $evolution->getQrCode();
+            Session::set('evolution_qr', $qrCode['base64']);
+            Session::set('evolution_pairing_code', $qrCode['code']);
+            Session::flash('success', 'QR code atualizado. Escaneie-o com o WhatsApp para conectar.');
+        } catch (\Throwable $e) {
+            Session::flash('error', 'Não foi possível gerar o QR code: ' . $e->getMessage());
+        }
+
+        $this->redirect('/configuracoes');
+    }
+
+    public function confirmEvolutionConnection(): void
+    {
+        if (!$this->isPost()) {
+            $this->redirect('/configuracoes');
+        }
+
+        if (!$this->validateCsrfToken($this->getPost('csrf_token'))) {
+            Session::flash('error', 'Token inválido');
+            $this->redirect('/configuracoes');
+        }
+
+        try {
+            $instance = $this->getEvolutionInstanceName($this->configuracao->get());
+            $evolution = $this->getLocalEvolutionApi($instance);
+            $evolution->checkConnection();
+            $this->configuracao->update([
+                'evolution_enabled' => 1,
+                'evolution_url' => 'http://127.0.0.1:8080',
+                'evolution_instance' => $instance,
+                'evolution_api_key' => $this->getLocalEvolutionApiKey()
+            ]);
+            Session::remove('evolution_qr');
+            Session::remove('evolution_pairing_code');
+            Session::flash('success', 'WhatsApp conectado e envio por WhatsApp ativado.');
+        } catch (\Throwable $e) {
+            Session::flash('error', 'O WhatsApp ainda não está conectado: ' . $e->getMessage());
+        }
+
+        $this->redirect('/configuracoes');
+    }
+
     public function createUser(): void
     {
         if (!$this->isPost()) {
@@ -104,6 +235,53 @@ class ConfiguracoesController extends Controller
         $this->usuario->delete($id);
         Session::flash('success', 'Usuário removido com sucesso!');
         $this->redirect('/configuracoes');
+    }
+
+    private function getEvolutionInstanceName(?array $config): string
+    {
+        $instance = trim((string) $this->getPost('evolution_instance', $config['evolution_instance'] ?? 'nps-indmotos'));
+        if (!preg_match('/^[A-Za-z0-9_-]{1,100}$/', $instance)) {
+            throw new \RuntimeException('Use somente letras, números, hífen ou sublinhado no nome da instância.');
+        }
+
+        return $instance;
+    }
+
+    private function getLocalEvolutionApi(string $instance): \App\Services\EvolutionApi
+    {
+        return new \App\Services\EvolutionApi(
+            'http://127.0.0.1:8080',
+            $this->getLocalEvolutionApiKey(),
+            $instance
+        );
+    }
+
+    private function getLocalEvolutionApiKey(): string
+    {
+        $envPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
+        if (!is_file($envPath) || !is_readable($envPath)) {
+            throw new \RuntimeException('Arquivo .env não encontrado. Execute docker\\setup.ps1 primeiro.');
+        }
+
+        $environment = parse_ini_file($envPath, false, INI_SCANNER_RAW);
+        $apiKey = is_array($environment) ? trim((string) ($environment['AUTHENTICATION_API_KEY'] ?? '')) : '';
+        if ($apiKey === '' || str_starts_with($apiKey, 'replace-with-')) {
+            throw new \RuntimeException('A chave da Evolution API não está configurada no arquivo .env.');
+        }
+
+        return $apiKey;
+    }
+
+    private function saveLocalEvolutionSettings(string $instance): void
+    {
+        $config = $this->configuracao->get();
+        $sameInstance = ($config['evolution_instance'] ?? null) === $instance;
+        $this->configuracao->update([
+            'evolution_enabled' => $sameInstance ? (int) ($config['evolution_enabled'] ?? 0) : 0,
+            'evolution_url' => 'http://127.0.0.1:8080',
+            'evolution_instance' => $instance,
+            'evolution_api_key' => $this->getLocalEvolutionApiKey()
+        ]);
     }
 
     private function resolveLogoUrl(?array $config): ?string

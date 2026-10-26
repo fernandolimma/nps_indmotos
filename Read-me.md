@@ -20,7 +20,7 @@ Aplicação web em PHP para importar ordens de serviço (OS), enviar pesquisas d
   - `Modelo`
   - `Pessoa`
   - `E-mail Pessoa`
-- Opcionalmente, a coluna `Telefone Pessoa` com DDD para receber a pesquisa por WhatsApp. Telefones brasileiros sem código do país recebem o prefixo `55` automaticamente; números fora do padrão brasileiro não são enviados pela integração.
+- Opcionalmente, a coluna `Telefone Celular` com DDD para receber a pesquisa por WhatsApp. Na importação, o sistema remove caracteres de formatação e acrescenta o prefixo brasileiro `55` quando ele não foi informado; números fora do padrão brasileiro são rejeitados.
 - Cada registro importado recebe um token exclusivo e uma data limite para resposta, calculada com o prazo configurado.
 - A tela **Carga** apresenta os registros que ainda aguardam envio e permite disparar as pesquisas por e-mail e, quando habilitado, por WhatsApp.
 - Quando a Evolution API estiver habilitada e configurada, o mesmo disparo também envia uma mensagem WhatsApp para os registros com telefone. O status de envio é controlado separadamente por canal; uma falha em um canal não impede a tentativa no outro, e os canais com erro podem ser tentados novamente.
@@ -63,14 +63,16 @@ Exibe indicadores do mês atual e do envio:
 
 - Configuração de host, porta, usuário e senha SMTP, além do e-mail e nome do remetente.
 - Prazo de validade da pesquisa em dias, usado para calcular a data limite dos próximos registros importados.
-- URL base, nome da instância e API key da Evolution API, com opção de ativar o envio de pesquisas por WhatsApp junto com o e-mail. A chave salva é mantida quando o campo de API key fica em branco.
+- URL base, nome da instância e API key da Evolution API, com opção de ativar o envio de pesquisas por WhatsApp junto com o e-mail. O botão **Testar conexão da Evolution API** consulta o estado da instância antes do disparo; a chave salva é mantida quando o campo de API key fica em branco.
+- A integração usa a API oficial da Evolution: `GET /instance/connectionState/{instanceName}` para testar a conexão e `POST /message/sendText/{instanceName}` para enviar mensagens, autenticando pelo cabeçalho `apikey`. Consulte o [repositório oficial](https://github.com/evolution-foundation/evolution-api).
+- Para a instalação local com Docker, execute `.\docker\setup.ps1` na raiz do projeto com o Docker Desktop aberto. O script gera segredos locais e inicia a Evolution API, PostgreSQL e Redis; a tela de configurações cria a instância, mostra o QR code e ativa o WhatsApp após verificar a conexão.
 - Envio de logo para personalizar as telas de acesso e pesquisa e o e-mail. Aceita PNG, JPG, GIF ou WEBP até 2 MB.
 - Gerenciamento de contas de usuário.
 
 ## Fluxo principal
 
 1. O MASTER configura o SMTP, o remetente, a validade das pesquisas e, opcionalmente, a logo e a Evolution API.
-2. Um usuário importa a planilha de OS pela tela **Carga**; para o WhatsApp, a planilha também deve conter `Telefone Pessoa`.
+2. Um usuário importa a planilha de OS pela tela **Carga**; para o WhatsApp, a planilha também deve conter `Telefone Celular`.
 3. Após conferir os registros importados, dispara os e-mails pendentes e, se habilitado, as mensagens WhatsApp.
 4. O cliente abre o link recebido e responde à pesquisa dentro do prazo.
 5. A equipe acompanha respostas, pendências e erros de envio no dashboard e nos relatórios.
@@ -100,6 +102,17 @@ Exibe indicadores do mês atual e do envio:
 4. Ative a extensão ZIP no PHP do XAMPP (`extension=zip` no `php.ini`) e reinicie o Apache.
 5. Se o Apache estiver configurado com o virtual host local do projeto, adicione `127.0.0.1 nps-indmotos.local` ao arquivo `C:\Windows\System32\drivers\etc\hosts`, reinicie o Apache e acesse `http://nps-indmotos.local/setup` para criar o usuário MASTER. Caso use outra configuração de host/document root, acesse o endereço correspondente à instalação.
 6. Configure dados SMTP válidos em **Configurações** antes de disparar pesquisas. O registro inicial de configuração do banco contém valores de exemplo e não envia e-mails sem credenciais reais.
+7. Para instalar a Evolution API localmente no Docker Desktop, execute no PowerShell, a partir da pasta do projeto:
+
+   ```powershell
+   .\docker\setup.ps1
+   ```
+
+   O script cria `.env` com chaves aleatórias (não publique esse arquivo), baixa e inicia a Evolution API, PostgreSQL e Redis. Na primeira execução, a API aplica as migrações do banco e pode levar alguns minutos para iniciar; o script aguarda até 10 minutos. A API fica disponível somente no próprio computador em `http://127.0.0.1:8080`. Quando o script confirmar que ela está respondendo, entre como MASTER em **Configurações**.
+8. Na seção **Instalação local com Docker**, escolha um nome de instância e clique em **Criar instância e gerar QR code**. No WhatsApp do celular, abra **Dispositivos conectados > Conectar dispositivo** e leia o QR code exibido. Após conectar, clique em **Já conectei: verificar e ativar WhatsApp**.
+9. Na importação das OS, inclua a coluna `Telefone Celular`; o número deve conter DDD brasileiro. A aplicação armazena o telefone em dígitos, com o código `55`; quando o WhatsApp estiver conectado e ativado, o botão de disparo também enviará as pesquisas por esse canal.
+
+Para parar os serviços sem apagar os dados, execute `docker compose down` na pasta do projeto. Não use `docker compose down -v`, pois a opção `-v` apaga os volumes persistentes da Evolution API.
 
 O ponto de entrada HTTP fica em `public/`; os arquivos `.htaccess` do projeto encaminham as requisições para essa pasta e para o roteador da aplicação.
 
