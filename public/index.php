@@ -10,6 +10,24 @@ date_default_timezone_set('America/Sao_Paulo');
 Session::start();
 Router::init();
 
+Router::get('/healthz', function (): void {
+    try {
+        $health = \App\Core\Database::getInstance()->fetchOne('SELECT 1 AS healthy');
+        if ((int) ($health['healthy'] ?? 0) !== 1) {
+            throw new \RuntimeException('Database health check returned an unexpected result.');
+        }
+
+        http_response_code(200);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'ok';
+    } catch (\Throwable $e) {
+        error_log('Application health check failed: ' . $e->getMessage());
+        http_response_code(503);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'unavailable';
+    }
+});
+
 // Rotas públicas
 Router::get('/', function() {
     header('Location: ' . Router::baseUrl('/pesquisa'));

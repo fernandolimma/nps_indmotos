@@ -1,4 +1,49 @@
 services:
+  nps-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      nps-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: nps-db
+      DB_NAME: nps_indmotos
+      DB_USER: nps_app
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Configure MYSQL_PASSWORD no arquivo .env}
+      APP_BASE_URL: ${APP_BASE_URL:-}
+      EVOLUTION_API_URL: http://evolution-api:8080
+      AUTHENTICATION_API_KEY: ${AUTHENTICATION_API_KEY:?Configure AUTHENTICATION_API_KEY no arquivo .env}
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8081}:80"
+    volumes:
+      - nps_uploads:/var/www/html/public/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  nps-db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: nps_indmotos
+      MYSQL_USER: nps_app
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Configure MYSQL_PASSWORD no arquivo .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Configure MYSQL_ROOT_PASSWORD no arquivo .env}
+    volumes:
+      - nps_mysql:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 600s
+
   evolution-db:
     image: postgres:15-alpine
     restart: unless-stopped
@@ -60,6 +105,8 @@ services:
       - evolution_instances:/evolution/instances
 
 volumes:
+  nps_mysql:
+  nps_uploads:
   evolution_postgres:
   evolution_redis:
   evolution_instances:

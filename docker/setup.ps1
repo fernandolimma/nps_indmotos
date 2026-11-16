@@ -8,32 +8,65 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw 'Docker nao foi encontrado. Instale e abra o Docker Desktop antes de continuar.'
 }
 
-if (-not (Test-Path $envPath)) {
-    $postgresPassword = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
-    $apiKey = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
-    $environment = @(
-        "POSTGRES_PASSWORD=$postgresPassword"
-        "AUTHENTICATION_API_KEY=$apiKey"
-    )
-    Set-Content -Path $envPath -Value $environment -Encoding ASCII
-    Write-Host 'Arquivo .env criado com credenciais aleatorias. Ele nao sera publicado no Git.'
+if (Test-Path $envPath) {
+    $environmentLines = @(Get-Content -Path $envPath)
+    Write-Host 'Arquivo .env encontrado; as credenciais existentes serao preservadas.'
 }
 else {
-    Write-Host 'Arquivo .env existente encontrado; as credenciais salvas serao preservadas.'
+    $environmentLines = @()
+}
+
+$defaults = [ordered]@{
+    MYSQL_ROOT_PASSWORD = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+    MYSQL_PASSWORD = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+    POSTGRES_PASSWORD = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+    AUTHENTICATION_API_KEY = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+    APP_BIND_ADDRESS = '127.0.0.1'
+    APP_PORT = '8081'
+}
+
+$updatedEnvironment = $false
+foreach ($name in $defaults.Keys) {
+    $matchedLine = -1
+    for ($index = 0; $index -lt $environmentLines.Count; $index++) {
+        if ($environmentLines[$index] -match ('^\s*' + [regex]::Escape($name) + '\s*=\s*(.*?)\s*$')) {
+            $matchedLine = $index
+            $value = $Matches[1]
+            break
+        }
+    }
+
+    if ($matchedLine -lt 0) {
+        $environmentLines += "$name=$($defaults[$name])"
+        $value = $defaults[$name]
+        $updatedEnvironment = $true
+    }
+    elseif ([string]::IsNullOrWhiteSpace($value) -or $value.StartsWith('replace-with-')) {
+        $value = $defaults[$name]
+        $environmentLines[$matchedLine] = "$name=$value"
+        $updatedEnvironment = $true
+    }
+
+    if (($name -in @('MYSQL_ROOT_PASSWORD', 'MYSQL_PASSWORD', 'POSTGRES_PASSWORD', 'AUTHENTICATION_API_KEY')) -and ($value.Length -lt 32 -or $value.StartsWith('replace-with-'))) {
+        throw "A variavel $name no arquivo .env deve ter pelo menos 32 caracteres aleatorios."
+    }
+}
+
+if ($updatedEnvironment) {
+    Set-Content -Path $envPath -Value $environmentLines -Encoding ASCII
+    Write-Host 'Credenciais Docker verificadas/adicionadas ao .env local, que nao sera publicado no Git.'
 }
 
 $environmentValues = @{}
-foreach ($line in Get-Content -Path $envPath) {
-    if ($line -match '^\s*(POSTGRES_PASSWORD|AUTHENTICATION_API_KEY)\s*=\s*(.*?)\s*$') {
+foreach ($line in $environmentLines) {
+    if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$') {
         $environmentValues[$Matches[1]] = $Matches[2]
     }
 }
 
-foreach ($name in @('POSTGRES_PASSWORD', 'AUTHENTICATION_API_KEY')) {
-    $value = $environmentValues[$name]
-    if ([string]::IsNullOrWhiteSpace($value) -or $value.Length -lt 32 -or $value.StartsWith('replace-with-')) {
-        throw "A variavel $name no arquivo .env nao esta configurada com uma chave segura. Use chaves aleatorias com pelo menos 32 caracteres."
-    }
+$appPort = 0
+if ((-not [int]::TryParse([string] $environmentValues['APP_PORT'], [ref] $appPort)) -or $appPort -lt 1 -or $appPort -gt 65535) {
+    throw 'APP_PORT no arquivo .env deve ser uma porta entre 1 e 65535.'
 }
 
 Push-Location $projectRoot
@@ -43,17 +76,17 @@ try {
         throw 'A configuracao do Docker Compose e invalida.'
     }
 
-    docker compose --file $composePath up -d
+    docker compose --file $composePath up -d --build
     if ($LASTEXITCODE -ne 0) {
-        throw 'Nao foi possivel iniciar a Evolution API. Verifique se o Docker Desktop esta iniciado.'
+        throw 'Nao foi possivel iniciar a aplicacao. Verifique se o Docker Desktop esta iniciado.'
     }
 
-    $apiReady = $false
-    for ($attempt = 0; $attempt -lt 300; $attempt++) {
+    $appReady = $false
+    for ($attempt = 0; $attempt -lt 180; $attempt++) {
         try {
-            $response = Invoke-WebRequest -Uri 'http://127.0.0.1:8080/' -TimeoutSec 3 -UseBasicParsing
-            if ($response.StatusCode -eq 200) {
-                $apiReady = $true
+            $response = Invoke-WebRequest -Uri "http://127.0.0.1:$($environmentValues['APP_PORT'])/healthz" -TimeoutSec 3 -UseBasicParsing
+            if ($response.StatusCode -eq 200 -and $response.Content.Trim() -eq 'ok') {
+                $appReady = $true
                 break
             }
         }
@@ -62,16 +95,18 @@ try {
         }
     }
 
-    if (-not $apiReady) {
+    if (-not $appReady) {
         docker compose --file $composePath ps
-        throw 'Os containers foram iniciados, mas a Evolution API nao respondeu em http://127.0.0.1:8080 dentro de 10 minutos.'
+        throw 'A aplicacao NPS nao ficou pronta dentro de 6 minutos. Consulte docker compose logs nps-app nps-db.'
     }
 }
 finally {
     Pop-Location
 }
 
+$appUrl = "http://localhost:$($environmentValues['APP_PORT'])"
 Write-Host ''
-Write-Host 'Evolution API iniciada e respondendo em http://127.0.0.1:8080.'
-Write-Host 'URL local: http://127.0.0.1:8080'
-Write-Host 'Depois, volte a tela Configuracoes para criar a instancia e ler o QR code.'
+Write-Host "Aplicacao NPS pronta em $appUrl"
+Write-Host 'Entre em /setup para criar a conta MASTER, caso ainda nao exista.'
+Write-Host 'A Evolution API pode continuar preparando o banco na primeira inicializacao; acompanhe com docker compose logs -f evolution-api.'
+Write-Host 'Os dados SQL existentes do XAMPP nao sao apagados nem copiados automaticamente para o novo volume MySQL.'

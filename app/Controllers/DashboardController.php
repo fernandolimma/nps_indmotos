@@ -20,16 +20,16 @@ class DashboardController extends Controller
     {
         $total = $this->clienteOS->countMesAtual();
         $respondidas = $this->clienteOS->countRespondidasMesAtual();
-        $pendentes = $this->clienteOS->countPendentes();
         $mediaNpsMesAtual = $this->clienteOS->getMediaNpsMesAtual();
         $mediaNotasDetratorasMesAtual = $this->clienteOS->getMediaNotasDetratorasMesAtual();
+        $historicoNps = $this->clienteOS->getHistoricoNpsUltimosSeisMeses();
 
         View::render('dashboard/index', [
             'total' => $total,
             'respondidas' => $respondidas,
-            'pendentes' => $pendentes,
             'media_nps_mes_atual' => $mediaNpsMesAtual,
-            'media_notas_detratoras_mes_atual' => $mediaNotasDetratorasMesAtual
+            'media_notas_detratoras_mes_atual' => $mediaNotasDetratorasMesAtual,
+            'historico_nps' => $historicoNps
         ]);
     }
 }

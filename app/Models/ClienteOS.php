@@ -16,12 +16,17 @@ class ClienteOS
 
     private function ensureSchema(): void
     {
-        $this->db->query(
-            "ALTER TABLE clientes_os ADD COLUMN IF NOT EXISTS telefone_whatsapp VARCHAR(30) NULL AFTER email_cliente"
-        );
-        $this->db->query(
-            "ALTER TABLE clientes_os ADD COLUMN IF NOT EXISTS status_whatsapp ENUM('nao_enviado', 'enviado', 'retornado_erro', 'nao_disponivel') NOT NULL DEFAULT 'nao_disponivel' AFTER status_email"
-        );
+        if (!$this->db->columnExists('clientes_os', 'telefone_whatsapp')) {
+            $this->db->query(
+                'ALTER TABLE clientes_os ADD COLUMN telefone_whatsapp VARCHAR(30) NULL AFTER email_cliente'
+            );
+        }
+
+        if (!$this->db->columnExists('clientes_os', 'status_whatsapp')) {
+            $this->db->query(
+                "ALTER TABLE clientes_os ADD COLUMN status_whatsapp ENUM('nao_enviado', 'enviado', 'retornado_erro', 'nao_disponivel') NOT NULL DEFAULT 'nao_disponivel' AFTER status_email"
+            );
+        }
     }
 
     public function create(array $data): int
@@ -338,6 +343,70 @@ class ClienteOS
         );
 
         return isset($result['media_nps']) ? (float) $result['media_nps'] : null;
+    }
+
+    /**
+     * @return array{
+     *     media_nps: ?float,
+     *     total_respostas: int,
+     *     meses: list<array{mes: string, media_nps: ?float, total_respostas: int}>
+     * }
+     */
+    public function getHistoricoNpsUltimosSeisMeses(): array
+    {
+        $primeiroDiaMesAtual = new \DateTimeImmutable('first day of this month');
+        $inicio = $primeiroDiaMesAtual->modify('-5 months');
+        $fim = $primeiroDiaMesAtual->modify('+1 month');
+        $inicioChave = $inicio->format('Y-m');
+
+        $resultados = $this->db->fetchAll(
+            "SELECT DATE_FORMAT(r.data_resposta, '%Y-%m') AS mes,
+                    SUM(r.nota) AS soma_notas,
+                    COUNT(*) AS total_respostas
+             FROM respostas r
+             INNER JOIN clientes_os c ON c.id = r.cliente_os_id
+             WHERE c.status_resposta = 'respondido'
+               AND r.nota IS NOT NULL
+               AND r.data_resposta >= ?
+               AND r.data_resposta < ?
+             GROUP BY DATE_FORMAT(r.data_resposta, '%Y-%m')
+             ORDER BY mes",
+            [
+                $inicio->format('Y-m-d 00:00:00'),
+                $fim->format('Y-m-d 00:00:00')
+            ]
+        );
+
+        $resultadosPorMes = [];
+        foreach ($resultados as $resultado) {
+            $resultadosPorMes[$resultado['mes']] = $resultado;
+        }
+
+        $meses = [];
+        $somaNotas = 0.0;
+        $totalRespostas = 0;
+
+        for ($offset = 0; $offset < 6; $offset++) {
+            $dataMes = $inicio->modify("+{$offset} months");
+            $chaveMes = $dataMes->format('Y-m');
+            $resultado = $resultadosPorMes[$chaveMes] ?? null;
+            $respostas = (int) ($resultado['total_respostas'] ?? 0);
+            $somaMes = (float) ($resultado['soma_notas'] ?? 0);
+
+            $meses[] = [
+                'mes' => $chaveMes,
+                'media_nps' => $respostas > 0 ? round($somaMes / $respostas, 2) : null,
+                'total_respostas' => $respostas
+            ];
+            $somaNotas += $somaMes;
+            $totalRespostas += $respostas;
+        }
+
+        return [
+            'media_nps' => $totalRespostas > 0 ? round($somaNotas / $totalRespostas, 2) : null,
+            'total_respostas' => $totalRespostas,
+            'meses' => $meses
+        ];
     }
 
     public function getMediaNotasDetratorasMesAtual(): ?float

@@ -58,13 +58,7 @@ class ConfiguracoesController extends Controller
                 'email_remetente' => $this->getPost('email_remetente'),
                 'nome_remetente' => $this->getPost('nome_remetente'),
                 'logo_path' => $logoPath,
-                'dias_validade' => (int)$this->getPost('dias_validade'),
-                'evolution_enabled' => $this->getPost('evolution_enabled') ? 1 : 0,
-                'evolution_url' => trim((string) $this->getPost('evolution_url', '')),
-                'evolution_instance' => trim((string) $this->getPost('evolution_instance', '')),
-                'evolution_api_key' => trim((string) $this->getPost('evolution_api_key', '')) !== ''
-                    ? trim((string) $this->getPost('evolution_api_key'))
-                    : ($configAtual['evolution_api_key'] ?? null)
+                'dias_validade' => (int)$this->getPost('dias_validade')
             ]);
 
             if (!empty($logoAtual) && $logoAtual !== $logoPath) {
@@ -156,7 +150,7 @@ class ConfiguracoesController extends Controller
             if (strtolower($evolution->getConnectionState()) === 'open') {
                 $this->configuracao->update([
                     'evolution_enabled' => 1,
-                    'evolution_url' => 'http://127.0.0.1:8080',
+                    'evolution_url' => $this->getLocalEvolutionApiUrl(),
                     'evolution_instance' => $instance,
                     'evolution_api_key' => $this->getLocalEvolutionApiKey()
                 ]);
@@ -194,7 +188,7 @@ class ConfiguracoesController extends Controller
             $evolution->checkConnection();
             $this->configuracao->update([
                 'evolution_enabled' => 1,
-                'evolution_url' => 'http://127.0.0.1:8080',
+                'evolution_url' => $this->getLocalEvolutionApiUrl(),
                 'evolution_instance' => $instance,
                 'evolution_api_key' => $this->getLocalEvolutionApiKey()
             ]);
@@ -250,23 +244,34 @@ class ConfiguracoesController extends Controller
     private function getLocalEvolutionApi(string $instance): \App\Services\EvolutionApi
     {
         return new \App\Services\EvolutionApi(
-            'http://127.0.0.1:8080',
+            $this->getLocalEvolutionApiUrl(),
             $this->getLocalEvolutionApiKey(),
             $instance
         );
     }
 
+    private function getLocalEvolutionApiUrl(): string
+    {
+        $url = getenv('EVOLUTION_API_URL');
+        return is_string($url) && trim($url) !== ''
+            ? rtrim(trim($url), '/')
+            : 'http://127.0.0.1:8080';
+    }
+
     private function getLocalEvolutionApiKey(): string
     {
-        $envPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
-        if (!is_file($envPath) || !is_readable($envPath)) {
-            throw new \RuntimeException('Arquivo .env não encontrado. Execute docker\\setup.ps1 primeiro.');
+        $apiKey = getenv('AUTHENTICATION_API_KEY');
+        if (!is_string($apiKey) || trim($apiKey) === '') {
+            $envPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
+            if (is_file($envPath) && is_readable($envPath)) {
+                $environment = parse_ini_file($envPath, false, INI_SCANNER_RAW);
+                $apiKey = is_array($environment) ? ($environment['AUTHENTICATION_API_KEY'] ?? '') : '';
+            }
         }
 
-        $environment = parse_ini_file($envPath, false, INI_SCANNER_RAW);
-        $apiKey = is_array($environment) ? trim((string) ($environment['AUTHENTICATION_API_KEY'] ?? '')) : '';
+        $apiKey = is_string($apiKey) ? trim($apiKey) : '';
         if ($apiKey === '' || str_starts_with($apiKey, 'replace-with-')) {
-            throw new \RuntimeException('A chave da Evolution API não está configurada no arquivo .env.');
+            throw new \RuntimeException('A variável AUTHENTICATION_API_KEY não está configurada.');
         }
 
         return $apiKey;
@@ -278,7 +283,7 @@ class ConfiguracoesController extends Controller
         $sameInstance = ($config['evolution_instance'] ?? null) === $instance;
         $this->configuracao->update([
             'evolution_enabled' => $sameInstance ? (int) ($config['evolution_enabled'] ?? 0) : 0,
-            'evolution_url' => 'http://127.0.0.1:8080',
+            'evolution_url' => $this->getLocalEvolutionApiUrl(),
             'evolution_instance' => $instance,
             'evolution_api_key' => $this->getLocalEvolutionApiKey()
         ]);

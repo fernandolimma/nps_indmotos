@@ -1,0 +1,385 @@
+:root {
+    --nps-ink: #203648;
+    --nps-muted: #78838d;
+    --nps-page: #f3f5f7;
+    --nps-border: #e8edf0;
+    --nps-teal: #397f75;
+    --nps-teal-dark: #2f6d64;
+    --nps-card-shadow: 0 0.35rem 1.25rem rgba(32, 54, 74, 0.07);
+}
+
+body.nps-admin-page,
+body.nps-auth-page,
+body.nps-public-page {
+    min-height: 100vh;
+    background: var(--nps-page) !important;
+    color: var(--nps-ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body.nps-admin-page {
+    overflow-x: hidden;
+}
+
+.nps-admin-navbar {
+    background: #fff;
+    border-bottom: 1px solid var(--nps-border);
+    box-shadow: 0 0.2rem 0.8rem rgba(32, 54, 74, 0.04);
+}
+
+.nps-admin-navbar .navbar-brand {
+    color: var(--nps-ink);
+    font-weight: 750;
+    letter-spacing: -0.02em;
+}
+
+.nps-admin-navbar .navbar-brand:hover {
+    color: var(--nps-teal-dark);
+}
+
+.nps-admin-navbar .nav-link {
+    border-radius: 0.65rem;
+    color: #64727c;
+    font-weight: 550;
+    margin: 0 0.15rem;
+    padding-right: 0.8rem !important;
+    padding-left: 0.8rem !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nps-admin-navbar .nav-link:hover,
+.nps-admin-navbar .nav-link:focus {
+    background: #e8f3f0;
+    color: var(--nps-teal-dark);
+}
+
+.nps-admin-navbar .navbar-toggler {
+    border-color: var(--nps-border);
+}
+
+.nps-admin-container {
+    max-width: 1440px;
+}
+
+.nps-admin-content {
+    padding-bottom: 2rem;
+}
+
+.nps-admin-content .table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+.nps-admin-content h2 {
+    color: var(--nps-ink);
+    font-size: clamp(1.55rem, 2.4vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+}
+
+.nps-admin-content h3,
+.nps-admin-content h4,
+.nps-admin-content h5 {
+    color: var(--nps-ink);
+    letter-spacing: -0.02em;
+}
+
+.nps-admin-content .text-muted,
+.nps-admin-content .form-text {
+    color: var(--nps-muted) !important;
+}
+
+.nps-admin-content .card {
+    overflow: hidden;
+    border: 0;
+    border-radius: 1.15rem;
+    box-shadow: var(--nps-card-shadow);
+}
+
+.nps-admin-content .card-header {
+    border-bottom: 1px solid #edf1f3;
+    background: #fff;
+    color: var(--nps-ink);
+    padding: 1.15rem 1.4rem;
+}
+
+.nps-admin-content .card-body {
+    padding: 1.4rem;
+}
+
+.nps-admin-content .card-header.bg-info {
+    border-bottom: 0;
+    background: #d7eee9 !important;
+    color: var(--nps-ink) !important;
+}
+
+.nps-admin-content .btn {
+    border-radius: 0.7rem;
+    font-weight: 600;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nps-admin-content .btn:hover:not(:disabled) {
+    box-shadow: 0 0.25rem 0.7rem rgba(32, 54, 74, 0.12);
+    transform: translateY(-1px);
+}
+
+.nps-admin-content .btn-primary {
+    --bs-btn-bg: var(--nps-teal);
+    --bs-btn-border-color: var(--nps-teal);
+    --bs-btn-hover-bg: var(--nps-teal-dark);
+    --bs-btn-hover-border-color: var(--nps-teal-dark);
+    --bs-btn-active-bg: var(--nps-teal-dark);
+    --bs-btn-active-border-color: var(--nps-teal-dark);
+    --bs-btn-disabled-bg: var(--nps-teal);
+    --bs-btn-disabled-border-color: var(--nps-teal);
+}
+
+.nps-admin-content .btn-outline-primary {
+    --bs-btn-color: var(--nps-teal-dark);
+    --bs-btn-border-color: #9dc9c1;
+    --bs-btn-hover-bg: var(--nps-teal);
+    --bs-btn-hover-border-color: var(--nps-teal);
+}
+
+.nps-admin-content .form-control,
+.nps-admin-content .form-select {
+    min-height: 2.75rem;
+    border-color: #dfe6e9;
+    border-radius: 0.7rem;
+    color: var(--nps-ink);
+}
+
+.nps-admin-content textarea.form-control {
+    min-height: auto;
+}
+
+.nps-admin-content .form-control:focus,
+.nps-admin-content .form-select:focus {
+    border-color: #8bbdb4;
+    box-shadow: 0 0 0 0.2rem rgba(57, 127, 117, 0.14);
+}
+
+.nps-admin-content .form-check-input:checked {
+    border-color: var(--nps-teal);
+    background-color: var(--nps-teal);
+}
+
+.nps-admin-content .table {
+    --bs-table-color: var(--nps-ink);
+    --bs-table-striped-bg: #f8fafb;
+    --bs-table-hover-bg: #eff6f4;
+    margin-bottom: 0;
+}
+
+.nps-admin-content .table > :not(caption) > * > * {
+    border-bottom-color: #edf1f3;
+    padding: 0.85rem 0.75rem;
+}
+
+.nps-admin-content .table thead th {
+    background: #f8fafb;
+    color: #65737d;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.nps-admin-content .table tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+.nps-admin-content .pagination {
+    gap: 0.35rem;
+}
+
+.nps-admin-content .page-link {
+    border: 0;
+    border-radius: 0.65rem !important;
+    color: var(--nps-teal-dark);
+}
+
+.nps-admin-content .page-item.active .page-link {
+    background: var(--nps-teal);
+    color: #fff;
+}
+
+.nps-admin-content .alert {
+    border: 0;
+    border-radius: 0.9rem;
+    box-shadow: 0 0.2rem 0.75rem rgba(32, 54, 74, 0.05);
+}
+
+.nps-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.nps-table-hint {
+    display: none;
+}
+
+.nps-mobile-stack > * + * {
+    margin-left: 0.35rem;
+}
+
+.nps-auth-shell {
+    min-height: calc(100vh - 3rem);
+    align-items: center;
+}
+
+.nps-auth-card,
+.nps-public-card {
+    overflow: hidden;
+    border: 0;
+    border-radius: 1.25rem;
+    box-shadow: 0 1rem 3rem rgba(32, 54, 74, 0.11);
+}
+
+.nps-auth-card .card-header,
+.nps-public-header {
+    border-bottom: 1px solid var(--nps-border);
+    background: #fff;
+    color: var(--nps-ink);
+    padding: 1.4rem 1.5rem;
+}
+
+.nps-auth-card .card-body,
+.nps-public-card .card-body {
+    padding: 1.6rem;
+}
+
+.nps-auth-page .form-control,
+.nps-public-page .form-control {
+    min-height: 2.8rem;
+    border-color: #dfe6e9;
+    border-radius: 0.7rem;
+}
+
+.nps-auth-page .form-control:focus,
+.nps-public-page .form-control:focus {
+    border-color: #8bbdb4;
+    box-shadow: 0 0 0 0.2rem rgba(57, 127, 117, 0.14);
+}
+
+.nps-auth-page .btn-primary,
+.nps-public-page .btn-primary {
+    --bs-btn-bg: var(--nps-teal);
+    --bs-btn-border-color: var(--nps-teal);
+    --bs-btn-hover-bg: var(--nps-teal-dark);
+    --bs-btn-hover-border-color: var(--nps-teal-dark);
+    border-radius: 0.7rem;
+    font-weight: 600;
+}
+
+.nps-public-page .alert-info {
+    border: 0;
+    border-radius: 1rem;
+    background: #e8f4f1;
+    color: var(--nps-ink);
+}
+
+.nps-score-grid .form-check {
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.nps-score-grid .form-check:has(.form-check-input:checked) {
+    border-color: var(--nps-teal);
+    background: #e8f4f1;
+}
+
+@media (max-width: 767.98px) {
+    .nps-admin-container {
+        padding-right: 0.75rem;
+        padding-left: 0.75rem;
+    }
+
+    .nps-admin-content {
+        margin-top: 1.25rem !important;
+        padding-bottom: 1.25rem;
+    }
+
+    .nps-admin-content .card-body {
+        padding: 1rem;
+    }
+
+    .nps-admin-content .card-header {
+        padding: 1rem;
+    }
+
+    .nps-admin-content .table {
+        min-width: 640px;
+    }
+
+    .nps-admin-content .pagination {
+        flex-wrap: wrap;
+    }
+
+    .nps-admin-navbar .navbar-brand {
+        font-size: 1rem;
+    }
+
+    .nps-table-hint {
+        display: block;
+        margin-bottom: 0.75rem;
+        color: var(--nps-muted);
+        font-size: 0.875rem;
+    }
+
+    .nps-page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .nps-page-header .btn {
+        width: 100%;
+    }
+
+    .nps-filter-actions {
+        align-items: stretch !important;
+        flex-direction: column;
+    }
+
+    .nps-filter-actions .btn {
+        width: 100%;
+    }
+
+    .nps-section-meta {
+        align-items: flex-start !important;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .nps-mobile-stack > * + * {
+        display: inline-block;
+        margin-top: 0.4rem;
+        margin-left: 0;
+    }
+
+    .nps-auth-shell {
+        min-height: auto;
+        margin-top: 1.5rem !important;
+        padding-bottom: 1.5rem;
+    }
+
+    .nps-auth-card .card-body,
+    .nps-auth-card .card-header,
+    .nps-public-card .card-body,
+    .nps-public-header {
+        padding: 1rem;
+    }
+
+    .nps-public-shell {
+        margin-top: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .nps-score-grid .form-check {
+        width: calc(33.333% - 0.5rem);
+        margin: 0;
+        text-align: center;
+    }
+}

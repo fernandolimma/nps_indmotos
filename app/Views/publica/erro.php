@@ -13,8 +13,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="<?= App\Core\Router::baseUrl('/imagens/nps_indmotos_192x192.png') ?>">
     <link rel="icon" type="image/png" sizes="500x500" href="<?= App\Core\Router::baseUrl('/imagens/nps_indmotos_500x500.png') ?>">
     <link rel="apple-touch-icon" sizes="192x192" href="<?= App\Core\Router::baseUrl('/imagens/nps_indmotos_192x192.png') ?>">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#f3f5f7">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="<?= App\Core\Router::baseUrl('/css/nps-theme.css') ?>" rel="stylesheet">
     <style>
         @media (max-width: 767.98px) {
             .nps-public-shell {
@@ -27,7 +28,7 @@
         }
     </style>
 </head>
-<body class="bg-light">
+<body class="nps-public-page">
     <div class="container mt-5 nps-public-shell">
         <div class="row justify-content-center">
             <div class="col-md-6 text-center">

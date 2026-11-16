@@ -41,6 +41,53 @@ class EvolutionApi
         $this->assertSuccessfulResponse($httpStatus, $response);
     }
 
+    public function sendSurveyCta(
+        string $phone,
+        string $title,
+        string $description,
+        string $footer,
+        string $surveyUrl,
+        string $logoBase64
+    ): void {
+        if (!filter_var($surveyUrl, FILTER_VALIDATE_URL) || !in_array(parse_url($surveyUrl, PHP_URL_SCHEME), ['http', 'https'], true)) {
+            throw new RuntimeException('O link da pesquisa não é uma URL HTTP ou HTTPS válida.');
+        }
+
+        if (
+            $logoBase64 === ''
+            || !preg_match('/^[A-Za-z0-9+\/=\r\n]+$/', $logoBase64)
+            || base64_decode($logoBase64, true) === false
+        ) {
+            throw new RuntimeException('A logo da mensagem WhatsApp está em formato inválido.');
+        }
+
+        $payload = json_encode([
+            'number' => BrazilianPhoneNumber::normalize($phone),
+            'title' => $title,
+            'description' => $description,
+            'footer' => $footer,
+            'thumbnailUrl' => $logoBase64,
+            'buttons' => [
+                [
+                    'type' => 'url',
+                    'displayText' => 'Responder pesquisa',
+                    'url' => $surveyUrl
+                ]
+            ]
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if ($payload === false) {
+            throw new RuntimeException('Não foi possível preparar a mensagem de pesquisa para WhatsApp.');
+        }
+
+        [$httpStatus, $response] = $this->request(
+            'POST',
+            $this->baseUrl . '/message/sendButtons/' . rawurlencode($this->instance),
+            $payload
+        );
+        $this->assertSuccessfulResponse($httpStatus, $response);
+    }
+
     public function createInstance(): void
     {
         $payload = json_encode([

@@ -23,7 +23,7 @@ Aplicação web em PHP para importar ordens de serviço (OS), enviar pesquisas d
 - Opcionalmente, a coluna `Telefone Celular` com DDD para receber a pesquisa por WhatsApp. Na importação, o sistema remove caracteres de formatação e acrescenta o prefixo brasileiro `55` quando ele não foi informado; números fora do padrão brasileiro são rejeitados.
 - Cada registro importado recebe um token exclusivo e uma data limite para resposta, calculada com o prazo configurado.
 - A tela **Carga** apresenta os registros que ainda aguardam envio e permite disparar as pesquisas por e-mail e, quando habilitado, por WhatsApp.
-- Quando a Evolution API estiver habilitada e configurada, o mesmo disparo também envia uma mensagem WhatsApp para os registros com telefone. O status de envio é controlado separadamente por canal; uma falha em um canal não impede a tentativa no outro, e os canais com erro podem ser tentados novamente.
+- Quando a Evolution API estiver habilitada e configurada, o mesmo disparo também envia uma mensagem WhatsApp com a logo configurada e um botão **Responder pesquisa** para os registros com telefone. O status de envio é controlado separadamente por canal; uma falha em um canal não impede a tentativa no outro, e os canais com erro podem ser tentados novamente.
 - Os e-mails são enviados individualmente, com nome do cliente, número da OS, prazo e link exclusivo para a pesquisa. A logo configurada também pode aparecer no e-mail.
 - O sistema acompanha separadamente os estados de e-mail (`nao_enviado`, `enviado` ou `retornado_erro`) e WhatsApp (`nao_enviado`, `enviado`, `retornado_erro` ou `nao_disponivel`). É possível limpar registros pendentes que ainda não tiveram envio em nenhum canal.
 
@@ -63,8 +63,8 @@ Exibe indicadores do mês atual e do envio:
 
 - Configuração de host, porta, usuário e senha SMTP, além do e-mail e nome do remetente.
 - Prazo de validade da pesquisa em dias, usado para calcular a data limite dos próximos registros importados.
-- URL base, nome da instância e API key da Evolution API, com opção de ativar o envio de pesquisas por WhatsApp junto com o e-mail. O botão **Testar conexão da Evolution API** consulta o estado da instância antes do disparo; a chave salva é mantida quando o campo de API key fica em branco.
-- A integração usa a API oficial da Evolution: `GET /instance/connectionState/{instanceName}` para testar a conexão e `POST /message/sendText/{instanceName}` para enviar mensagens, autenticando pelo cabeçalho `apikey`. Consulte o [repositório oficial](https://github.com/evolution-foundation/evolution-api).
+- Conexão do WhatsApp pela Evolution API: crie a instância na primeira conexão e use **Conectar ou gerar novo QR code** para refazer o pareamento. Ao confirmar a conexão, o envio por WhatsApp é ativado automaticamente; URL e API key são obtidas da configuração do servidor.
+- A integração usa a API oficial da Evolution: `GET /instance/connectionState/{instanceName}` para testar a conexão e `POST /message/sendButtons/{instanceName}` para enviar a mensagem com imagem e botão de URL, autenticando pelo cabeçalho `apikey`. Consulte o [repositório oficial](https://github.com/evolution-foundation/evolution-api).
 - Para a instalação local com Docker, execute `.\docker\setup.ps1` na raiz do projeto com o Docker Desktop aberto. O script gera segredos locais e inicia a Evolution API, PostgreSQL e Redis; a tela de configurações cria a instância, mostra o QR code e ativa o WhatsApp após verificar a conexão.
 - Envio de logo para personalizar as telas de acesso e pesquisa e o e-mail. Aceita PNG, JPG, GIF ou WEBP até 2 MB.
 - Gerenciamento de contas de usuário.
@@ -79,7 +79,7 @@ Exibe indicadores do mês atual e do envio:
 
 ## Tecnologias e dependências
 
-- PHP 8.2 ou superior.
+- PHP 8.2 ou superior (a imagem Docker usa PHP 8.3, compatível com as dependências travadas no `composer.lock`).
 - MySQL com suporte a InnoDB.
 - Composer.
 - `phpoffice/phpspreadsheet` para leitura de planilhas.
@@ -88,33 +88,44 @@ Exibe indicadores do mês atual e do envio:
 - Extensão ZIP do PHP habilitada para processar arquivos `.xlsx`.
 - Interface baseada em Bootstrap 5, carregado via CDN.
 
-## Instalação local (XAMPP)
+## Instalação com Docker (recomendada)
 
-1. Instale as dependências PHP:
+Requisitos: Docker Engine e Docker Compose v2 (no Windows, Docker Desktop).
 
-   ```bash
-   composer install
-   ```
-
-2. Crie o banco e as tabelas importando [`database/schema.sql`](database/schema.sql) no MySQL. O script cria o banco `nps_indmotos`, as tabelas e os registros iniciais de configuração e perguntas.
-   Em instalações existentes, execute [`database/migrations/20261023_evolution_whatsapp.sql`](database/migrations/20261023_evolution_whatsapp.sql) no MySQL para adicionar as colunas da Evolution API e do telefone. O script verifica cada coluna e pode ser executado novamente sem duplicá-las. As mesmas colunas também são verificadas automaticamente quando os modelos do sistema são carregados.
-3. Confira a conexão com o banco em [`app/Core/Database.php`](app/Core/Database.php). Atualmente, host, banco, usuário e senha são definidos diretamente nesse arquivo; os valores iniciais são `localhost`, `nps_indmotos`, `root` e senha vazia.
-4. Ative a extensão ZIP no PHP do XAMPP (`extension=zip` no `php.ini`) e reinicie o Apache.
-5. Se o Apache estiver configurado com o virtual host local do projeto, adicione `127.0.0.1 nps-indmotos.local` ao arquivo `C:\Windows\System32\drivers\etc\hosts`, reinicie o Apache e acesse `http://nps-indmotos.local/setup` para criar o usuário MASTER. Caso use outra configuração de host/document root, acesse o endereço correspondente à instalação.
-6. Configure dados SMTP válidos em **Configurações** antes de disparar pesquisas. O registro inicial de configuração do banco contém valores de exemplo e não envia e-mails sem credenciais reais.
-7. Para instalar a Evolution API localmente no Docker Desktop, execute no PowerShell, a partir da pasta do projeto:
+1. Na raiz do projeto, execute no PowerShell:
 
    ```powershell
    .\docker\setup.ps1
    ```
 
-   O script cria `.env` com chaves aleatórias (não publique esse arquivo), baixa e inicia a Evolution API, PostgreSQL e Redis. Na primeira execução, a API aplica as migrações do banco e pode levar alguns minutos para iniciar; o script aguarda até 10 minutos. A API fica disponível somente no próprio computador em `http://127.0.0.1:8080`. Quando o script confirmar que ela está respondendo, entre como MASTER em **Configurações**.
-8. Na seção **Instalação local com Docker**, escolha um nome de instância e clique em **Criar instância e gerar QR code**. No WhatsApp do celular, abra **Dispositivos conectados > Conectar dispositivo** e leia o QR code exibido. Após conectar, clique em **Já conectei: verificar e ativar WhatsApp**.
-9. Na importação das OS, inclua a coluna `Telefone Celular`; o número deve conter DDD brasileiro. A aplicação armazena o telefone em dígitos, com o código `55`; quando o WhatsApp estiver conectado e ativado, o botão de disparo também enviará as pesquisas por esse canal.
+   O script cria ou completa `.env` com credenciais aleatórias (mantenha esse arquivo privado), constrói a imagem PHP/Apache e inicia a aplicação, MySQL, Evolution API, PostgreSQL e Redis. A aplicação aguarda o banco ficar pronto e cria as tabelas automaticamente na primeira inicialização.
 
-Para parar os serviços sem apagar os dados, execute `docker compose down` na pasta do projeto. Não use `docker compose down -v`, pois a opção `-v` apaga os volumes persistentes da Evolution API.
+2. Abra `http://localhost:8081/setup` e crie a conta MASTER. A aplicação fica disponível em `http://localhost:8081`; a porta pode ser alterada em `APP_PORT` no `.env`.
 
-O ponto de entrada HTTP fica em `public/`; os arquivos `.htaccess` do projeto encaminham as requisições para essa pasta e para o roteador da aplicação.
+3. Configure dados SMTP válidos em **Configurações**. Em uma instalação nova, o banco Docker é inicializado com perguntas e configurações de exemplo; crie o primeiro usuário em `/setup`. Nesta implantação, o banco e os uploads existentes no XAMPP foram migrados; em instalações futuras, essa cópia **não é automática**.
+
+4. Para conectar o WhatsApp, entre como MASTER e abra **Configurações**. Na primeira conexão, crie a instância; nas próximas, use **Conectar ou gerar novo QR code**. Escaneie-o em **WhatsApp > Dispositivos conectados > Conectar dispositivo** e confirme a conexão para ativar os envios. Na primeira inicialização, a Evolution pode demorar para aplicar migrações; acompanhe com `docker compose logs -f evolution-api`.
+
+5. Na carga das OS, inclua a coluna `Telefone Celular` com DDD brasileiro. A aplicação acrescenta o código `55` quando necessário.
+
+Uploads e os bancos da aplicação/Evolution ficam em volumes Docker nomeados. `docker compose down` para os containers sem apagar os dados; **não use `docker compose down -v`**, pois `-v` remove esses volumes. Faça backup dos volumes antes de atualizar ou mover o servidor.
+
+Para VPS, configure o proxy reverso HTTPS para encaminhar ao endereço local da aplicação. Defina `APP_BASE_URL=https://seu-dominio` no `.env` para que os links públicos de pesquisa usem HTTPS atrás do proxy. Por padrão, a porta da aplicação e a porta de diagnóstico da Evolution ficam vinculadas a `127.0.0.1`; o MySQL, PostgreSQL e Redis não são publicados no host. Nunca exponha as portas internas dos bancos ou a API Evolution diretamente à Internet.
+
+O Docker cria um banco novo. Antes de migrar uma instalação XAMPP existente, faça e valide um backup do MySQL; não remova nem altere o banco antigo até confirmar os dados no novo ambiente.
+
+## Instalação local (XAMPP)
+
+O modo XAMPP continua disponível para desenvolvimento:
+
+1. Instale as dependências com `composer install`.
+2. Crie o banco importando [`database/schema.sql`](database/schema.sql). Para bancos existentes, aplique [`database/migrations/20261023_evolution_whatsapp.sql`](database/migrations/20261023_evolution_whatsapp.sql) se as colunas ainda não existirem.
+3. A conexão pode ser configurada por `DB_HOST`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`. Sem essas variáveis, mantém os padrões locais: `localhost`, `nps_indmotos`, `root` e senha vazia.
+4. Ative as extensões ZIP e cURL no PHP do XAMPP e reinicie o Apache.
+5. Acesse o endereço local configurado no Apache (por exemplo, `http://nps-indmotos.local/setup`) para criar a conta MASTER.
+6. Configure SMTP antes de disparar pesquisas. Para WhatsApp, instale os serviços Docker usando o procedimento acima; no XAMPP, a API local é acessada em `http://127.0.0.1:8080`.
+
+O ponto de entrada HTTP é `public/index.php`; o Docker configura o Apache para usar `public/` como raiz do site.
 
 ## Estrutura do projeto
 
@@ -126,6 +137,9 @@ app/
   Models/       Acesso aos dados de usuários, configurações, OS,
                 perguntas e respostas
   Views/        Telas administrativas, pesquisa pública e modelo de e-mail
+Dockerfile      Imagem PHP/Apache da aplicação
+docker-compose.yml  Aplicação, MySQL e serviços da Evolution API
+docker/         Configuração PHP e script de instalação no Windows
 database/
   schema.sql    Criação do banco, tabelas e dados iniciais
 public/

@@ -16,9 +16,12 @@ class Usuario
 
     private function ensureSchema(): void
     {
-        $this->db->query(
-            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_usuario VARCHAR(20) NOT NULL DEFAULT 'USUARIO' AFTER senha_hash"
-        );
+        if (!$this->db->columnExists('usuarios', 'tipo_usuario')) {
+            $this->db->query(
+                "ALTER TABLE usuarios ADD COLUMN tipo_usuario VARCHAR(20) NOT NULL DEFAULT 'USUARIO' AFTER senha_hash"
+            );
+        }
+
         $this->db->query(
             "UPDATE usuarios SET tipo_usuario = 'USUARIO' WHERE tipo_usuario IS NULL OR tipo_usuario = '' OR tipo_usuario NOT IN ('MASTER', 'USUARIO')"
         );

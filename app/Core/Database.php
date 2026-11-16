@@ -5,6 +5,7 @@ namespace App\Core;
 use PDO;
 use PDOException;
 use PDOStatement;
+use RuntimeException;
 
 class Database
 {
@@ -13,10 +14,13 @@ class Database
 
     private function __construct()
     {
-        $host = 'localhost';
-        $dbname = 'nps_indmotos';
-        $username = 'root';
-        $password = '';
+        $host = getenv('DB_HOST') ?: 'localhost';
+        $dbname = getenv('DB_NAME') ?: 'nps_indmotos';
+        $username = getenv('DB_USER') ?: 'root';
+        $password = getenv('DB_PASSWORD');
+        if ($password === false) {
+            $password = '';
+        }
 
         try {
             $this->pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
@@ -25,7 +29,7 @@ class Database
                 PDO::ATTR_EMULATE_PREPARES => false
             ]);
         } catch (PDOException $e) {
-            die('Falha na conexão: ' . $e->getMessage());
+            throw new RuntimeException('Falha na conexão com o banco de dados.', 0, $e);
         }
     }
 
@@ -58,6 +62,19 @@ class Database
     {
         $result = $this->query($sql, $params)->fetch();
         return $result === false ? null : $result;
+    }
+
+    public function columnExists(string $table, string $column): bool
+    {
+        return $this->fetchOne(
+            'SELECT 1
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?
+               AND COLUMN_NAME = ?
+             LIMIT 1',
+            [$table, $column]
+        ) !== null;
     }
 
     public function insert(string $table, array $data): int

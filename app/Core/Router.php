@@ -78,6 +78,17 @@ class Router
 
     public static function baseUrl(string $path = ''): string
     {
+        $configuredBaseUrl = getenv('APP_BASE_URL');
+        if (is_string($configuredBaseUrl) && trim($configuredBaseUrl) !== '') {
+            $configuredBaseUrl = rtrim(trim($configuredBaseUrl), '/');
+            $scheme = parse_url($configuredBaseUrl, PHP_URL_SCHEME);
+            if (!filter_var($configuredBaseUrl, FILTER_VALIDATE_URL) || !in_array($scheme, ['http', 'https'], true)) {
+                throw new \RuntimeException('A variável APP_BASE_URL deve ser uma URL HTTP ou HTTPS válida.');
+            }
+
+            return $configuredBaseUrl . self::$basePath . $path;
+        }
+
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'];
         return $protocol . '://' . $host . self::$basePath . $path;
