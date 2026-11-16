@@ -114,6 +114,18 @@ Para VPS, configure o proxy reverso HTTPS para encaminhar ao endereço local da 
 
 O Docker cria um banco novo. Antes de migrar uma instalação XAMPP existente, faça e valide um backup do MySQL; não remova nem altere o banco antigo até confirmar os dados no novo ambiente.
 
+### VPS com Dokploy/Traefik
+
+O arquivo `docker-compose.vps.yml` publica a aplicação na rede `dokploy-network`, configura o domínio `nps.vorticehub.com` com TLS pelo Traefik e desloca a porta local da Evolution para evitar conflito com outros serviços da VPS. O registro DNS `A` do subdomínio deve apontar para o IP da VPS.
+
+Configure as quatro senhas do `.env` com valores aleatórios fortes e defina `APP_BASE_URL=https://nps.vorticehub.com`. Suba a aplicação e seus serviços com:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build
+```
+
+Para atualizar a implantação clonada do GitHub, use `git pull --ff-only` e execute novamente o mesmo comando. A Deploy key da VPS deve ter acesso somente de leitura ao repositório; mantenha a chave privada no servidor e não a inclua no `.env` ou no Git.
+
 ## Instalação local (XAMPP)
 
 O modo XAMPP continua disponível para desenvolvimento:
