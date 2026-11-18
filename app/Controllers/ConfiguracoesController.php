@@ -224,6 +224,64 @@ class ConfiguracoesController extends Controller
         $this->redirect('/configuracoes');
     }
 
+    public function updateUser(int $id): void
+    {
+        if (!$this->isPost()) {
+            $this->redirect('/configuracoes');
+        }
+
+        if (!$this->validateCsrfToken($this->getPost('csrf_token'))) {
+            Session::flash('error', 'Token inválido');
+            $this->redirect('/configuracoes');
+        }
+
+        $existente = $this->usuario->findById($id);
+        if (!$existente) {
+            Session::flash('error', 'Usuário não encontrado.');
+            $this->redirect('/configuracoes');
+        }
+
+        $nome = trim((string) $this->getPost('nome', ''));
+        $email = trim((string) $this->getPost('email', ''));
+        $senha = (string) $this->getPost('senha', '');
+        $tipo = strtoupper((string) $this->getPost('tipo_usuario', 'USUARIO'));
+
+        if ($nome === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error', 'Informe um nome e um e-mail válidos.');
+            $this->redirect('/configuracoes');
+        }
+
+        if ($senha !== '' && strlen($senha) < 6) {
+            Session::flash('error', 'A nova senha deve ter ao menos 6 caracteres.');
+            $this->redirect('/configuracoes');
+        }
+
+        if ($this->usuario->findByEmailExcept($email, $id)) {
+            Session::flash('error', 'Já existe outro usuário com este e-mail.');
+            $this->redirect('/configuracoes');
+        }
+
+        if (($existente['tipo_usuario'] ?? '') === 'MASTER' && $tipo !== 'MASTER' && $this->usuario->countMasters() <= 1) {
+            Session::flash('error', 'Não é possível remover o último usuário MASTER.');
+            $this->redirect('/configuracoes');
+        }
+
+        $this->usuario->update($id, [
+            'nome' => $nome,
+            'email' => $email,
+            'senha' => $senha,
+            'tipo_usuario' => $tipo
+        ]);
+
+        if ((int) Session::get('usuario_id') === $id) {
+            Session::set('usuario_nome', $nome);
+            Session::set('usuario_tipo', $tipo === 'MASTER' ? 'MASTER' : 'USUARIO');
+        }
+
+        Session::flash('success', 'Usuário atualizado com sucesso!');
+        $this->redirect('/configuracoes');
+    }
+
     public function deleteUser(int $id): void
     {
         $this->usuario->delete($id);

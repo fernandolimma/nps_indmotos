@@ -71,6 +71,7 @@ Router::post('/configuracoes/evolution/create-instance', 'ConfiguracoesControlle
 Router::post('/configuracoes/evolution/refresh-qr', 'ConfiguracoesController@refreshEvolutionQr');
 Router::post('/configuracoes/evolution/confirm-connection', 'ConfiguracoesController@confirmEvolutionConnection');
 Router::post('/configuracoes/create-user', 'ConfiguracoesController@createUser');
+Router::post('/configuracoes/(\d+)/update-user', 'ConfiguracoesController@updateUser');
 Router::get('/configuracoes/(\d+)/delete-user', 'ConfiguracoesController@deleteUser');
 
 Router::dispatch();

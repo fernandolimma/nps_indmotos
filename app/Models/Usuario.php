@@ -68,6 +68,40 @@ class Usuario
         return $this->db->fetchAll('SELECT id, nome, email, tipo_usuario, data_criacao FROM usuarios ORDER BY nome');
     }
 
+    public function findByEmailExcept(string $email, int $id): ?array
+    {
+        return $this->db->fetchOne(
+            'SELECT id FROM usuarios WHERE email = ? AND id <> ?',
+            [$email, $id]
+        );
+    }
+
+    public function countMasters(): int
+    {
+        $row = $this->db->fetchOne("SELECT COUNT(*) AS total FROM usuarios WHERE tipo_usuario = 'MASTER'");
+        return (int) ($row['total'] ?? 0);
+    }
+
+    public function update(int $id, array $data): int
+    {
+        $tipoUsuario = strtoupper((string) ($data['tipo_usuario'] ?? 'USUARIO'));
+        if (!in_array($tipoUsuario, ['MASTER', 'USUARIO'], true)) {
+            $tipoUsuario = 'USUARIO';
+        }
+
+        $fields = [
+            'nome' => $data['nome'],
+            'email' => $data['email'],
+            'tipo_usuario' => $tipoUsuario
+        ];
+
+        if (!empty($data['senha'])) {
+            $fields['senha_hash'] = password_hash($data['senha'], PASSWORD_DEFAULT);
+        }
+
+        return $this->db->update('usuarios', $fields, 'id = :usuario_id', ['usuario_id' => $id]);
+    }
+
     public function delete(int $id): int
     {
         return $this->db->delete('usuarios', 'id = ?', [$id]);

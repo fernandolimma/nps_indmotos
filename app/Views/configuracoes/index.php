@@ -176,6 +176,12 @@
                                     </span>
                                 </td>
                                 <td class="nps-mobile-stack">
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-editar-usuario"
+                                        data-bs-toggle="modal" data-bs-target="#editarUsuarioModal"
+                                        data-action="<?= App\Core\View::escape(App\Core\Router::baseUrl('/configuracoes/' . $usuario['id'] . '/update-user')) ?>"
+                                        data-nome="<?= App\Core\View::escape($usuario['nome']) ?>"
+                                        data-email="<?= App\Core\View::escape($usuario['email']) ?>"
+                                        data-tipo="<?= App\Core\View::escape($usuario['tipo_usuario'] ?? 'USUARIO') ?>">Editar</button>
                                     <a href="<?php echo App\Core\Router::baseUrl('/configuracoes/' . $usuario['id'] . '/delete-user'); ?>" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza?')">Remover</a>
                                 </td>
                             </tr>
@@ -226,6 +232,58 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="editarUsuarioModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <form id="editarUsuarioForm" method="POST">
+                <input type="hidden" name="csrf_token" value="<?= App\Core\View::escape($csrf_token) ?>">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editar_nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="editar_nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editar_email" class="form-label">E-mail</label>
+                        <input type="email" class="form-control" id="editar_email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editar_senha" class="form-label">Nova senha</label>
+                        <input type="password" class="form-control" id="editar_senha" name="senha" minlength="6" autocomplete="new-password">
+                        <div class="form-text">Deixe em branco para manter a senha atual.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editar_tipo_usuario" class="form-label">Tipo de Usuário</label>
+                        <select class="form-select" id="editar_tipo_usuario" name="tipo_usuario" required>
+                            <option value="USUARIO">USUARIO</option>
+                            <option value="MASTER">MASTER</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.btn-editar-usuario').forEach(function (button) {
+    button.addEventListener('click', function () {
+        document.getElementById('editarUsuarioForm').action = button.dataset.action;
+        document.getElementById('editar_nome').value = button.dataset.nome;
+        document.getElementById('editar_email').value = button.dataset.email;
+        document.getElementById('editar_senha').value = '';
+        document.getElementById('editar_tipo_usuario').value = button.dataset.tipo;
+    });
+});
+</script>
 
 <?php
 $content = ob_get_clean();
