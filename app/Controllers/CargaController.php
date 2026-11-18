@@ -228,7 +228,7 @@ class CargaController extends Controller
                 try {
                     $linkPesquisa = \App\Core\Router::baseUrl('/pesquisa?token=' . $cliente['token_unico']);
                     $mensagem = sprintf(
-                        "Olá, %s! Gostaríamos de ouvir sua opinião sobre o atendimento da %s referente à OS %s. Responda à pesquisa até %s: %s",
+                        "Olá, %s! Gostaríamos de ouvir sua opinião sobre o atendimento da %s referente à OS %s.\n\nResponda à pesquisa até %s:\n\n%s",
                         $cliente['nome_cliente'],
                         View::appName(),
                         $cliente['numero_os'],
