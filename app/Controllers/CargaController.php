@@ -163,8 +163,6 @@ class CargaController extends Controller
         $enviadosWhatsapp = 0;
         $falhasWhatsapp = 0;
         $evolution = null;
-        $logoWhatsapp = null;
-        $erroLogoWhatsapp = null;
         $erros = [];
         $detalheErroWhatsapp = null;
 
@@ -178,15 +176,6 @@ class CargaController extends Controller
             } catch (\Throwable $e) {
                 error_log('Configuração inválida da Evolution API: ' . $e->getMessage());
                 $erros[] = 'WhatsApp não enviado: confira as configurações da Evolution API';
-            }
-
-            if ($evolution !== null) {
-                try {
-                    $logoWhatsapp = $this->getWhatsappLogoBase64($config['logo_path'] ?? null);
-                } catch (\Throwable $e) {
-                    $erroLogoWhatsapp = $e;
-                    error_log('Não foi possível carregar a logo para o WhatsApp: ' . $e->getMessage());
-                }
             }
         }
 
@@ -237,33 +226,17 @@ class CargaController extends Controller
                 && $cliente['status_whatsapp'] !== 'enviado'
             ) {
                 try {
-                    if ($erroLogoWhatsapp !== null || $logoWhatsapp === null) {
-                        $erroLogo = $erroLogoWhatsapp?->getMessage()
-                            ?? 'Envie uma logo em Configurações antes de disparar pesquisas por WhatsApp.';
-                        throw new \RuntimeException(
-                            'Não foi possível incluir a logo na mensagem: ' . $erroLogo,
-                            0,
-                            $erroLogoWhatsapp
-                        );
-                    }
-
                     $linkPesquisa = \App\Core\Router::baseUrl('/pesquisa?token=' . $cliente['token_unico']);
-                    $descricao = sprintf(
-                        "Olá, %s!\n\nGostaríamos de ouvir sua opinião sobre o atendimento da %s referente à OS %s.\n\nResponda à pesquisa até %s.",
+                    $mensagem = sprintf(
+                        "Olá, %s! Gostaríamos de ouvir sua opinião sobre o atendimento da %s referente à OS %s. Responda à pesquisa até %s: %s",
                         $cliente['nome_cliente'],
                         View::appName(),
                         $cliente['numero_os'],
-                        date('d/m/Y', strtotime($cliente['data_limite']))
+                        date('d/m/Y', strtotime($cliente['data_limite'])),
+                        $linkPesquisa
                     );
 
-                    $evolution->sendSurveyCta(
-                        (string) $cliente['telefone_whatsapp'],
-                        'Pesquisa de satisfação',
-                        $descricao,
-                        View::appName() . ' · Sua opinião faz a diferença.',
-                        $linkPesquisa,
-                        $logoWhatsapp
-                    );
+                    $evolution->sendText((string) $cliente['telefone_whatsapp'], $mensagem);
                     $this->clienteOS->updateStatusWhatsapp($cliente['id'], 'enviado');
                     $enviadosWhatsapp++;
                 } catch (\Throwable $e) {
@@ -294,39 +267,6 @@ class CargaController extends Controller
         }
 
         $this->redirect('/carga');
-    }
-
-    private function getWhatsappLogoBase64(?string $logoPath): string
-    {
-        $logoPath = str_replace('\\', '/', trim((string) $logoPath));
-        if (!str_starts_with($logoPath, 'uploads/logos/')) {
-            throw new \RuntimeException('Envie uma logo em Configurações antes de disparar pesquisas por WhatsApp.');
-        }
-
-        $publicDirectory = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public';
-        $logoDirectory = realpath($publicDirectory . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'logos');
-        $filePath = realpath($publicDirectory . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $logoPath));
-        if (
-            $logoDirectory === false
-            || $filePath === false
-            || !str_starts_with($filePath, $logoDirectory . DIRECTORY_SEPARATOR)
-            || !is_file($filePath)
-            || !is_readable($filePath)
-        ) {
-            throw new \RuntimeException('A logo configurada não foi encontrada ou não pode ser lida.');
-        }
-
-        $mimeType = (new \finfo(FILEINFO_MIME_TYPE))->file($filePath);
-        if (!in_array($mimeType, ['image/png', 'image/jpeg', 'image/gif', 'image/webp'], true) || getimagesize($filePath) === false) {
-            throw new \RuntimeException('A logo configurada não é uma imagem válida.');
-        }
-
-        $contents = file_get_contents($filePath);
-        if ($contents === false) {
-            throw new \RuntimeException('Não foi possível ler o arquivo da logo configurada.');
-        }
-
-        return base64_encode($contents);
     }
 
     public function limparPendentes(): void

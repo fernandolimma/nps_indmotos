@@ -23,7 +23,7 @@ Aplicação web em PHP para importar ordens de serviço (OS), enviar pesquisas d
 - Opcionalmente, a coluna `Telefone Celular` com DDD para receber a pesquisa por WhatsApp. Na importação, o sistema remove caracteres de formatação e acrescenta o prefixo brasileiro `55` quando ele não foi informado; números fora do padrão brasileiro são rejeitados.
 - Cada registro importado recebe um token exclusivo e uma data limite para resposta, calculada com o prazo configurado.
 - A tela **Carga** apresenta os registros que ainda aguardam envio e permite disparar as pesquisas por e-mail e, quando habilitado, por WhatsApp.
-- Quando a Evolution API estiver habilitada e configurada, o mesmo disparo também envia uma mensagem WhatsApp com a logo configurada e um botão **Responder pesquisa** para os registros com telefone. O status de envio é controlado separadamente por canal; uma falha em um canal não impede a tentativa no outro, e os canais com erro podem ser tentados novamente.
+- Quando a Evolution API estiver habilitada e configurada, o mesmo disparo também envia uma mensagem de texto pelo WhatsApp com o link da pesquisa para os registros com telefone. O status de envio é controlado separadamente por canal; uma falha em um canal não impede a tentativa no outro, e os canais com erro podem ser tentados novamente.
 - Os e-mails são enviados individualmente, com nome do cliente, número da OS, prazo e link exclusivo para a pesquisa. A logo configurada também pode aparecer no e-mail.
 - O sistema acompanha separadamente os estados de e-mail (`nao_enviado`, `enviado` ou `retornado_erro`) e WhatsApp (`nao_enviado`, `enviado`, `retornado_erro` ou `nao_disponivel`). É possível limpar registros pendentes que ainda não tiveram envio em nenhum canal.
 
@@ -64,7 +64,7 @@ Exibe indicadores do mês atual e do envio:
 - Configuração de host, porta, usuário e senha SMTP, além do e-mail e nome do remetente.
 - Prazo de validade da pesquisa em dias, usado para calcular a data limite dos próximos registros importados.
 - Conexão do WhatsApp pela Evolution API: crie a instância na primeira conexão e use **Conectar ou gerar novo QR code** para refazer o pareamento. Ao confirmar a conexão, o envio por WhatsApp é ativado automaticamente; URL e API key são obtidas da configuração do servidor.
-- A integração usa a API oficial da Evolution: `GET /instance/connectionState/{instanceName}` para testar a conexão e `POST /message/sendButtons/{instanceName}` para enviar a mensagem com imagem e botão de URL, autenticando pelo cabeçalho `apikey`. Consulte o [repositório oficial](https://github.com/evolution-foundation/evolution-api).
+- A integração usa a Evolution API: `GET /instance/connectionState/{instanceName}` para testar a conexão e `POST /message/sendText/{instanceName}` para enviar a mensagem de texto, autenticando pelo cabeçalho `apikey`. Consulte o [repositório oficial](https://github.com/evolution-foundation/evolution-api).
 - Para a instalação local com Docker, execute `.\docker\setup.ps1` na raiz do projeto com o Docker Desktop aberto. O script gera segredos locais e inicia a Evolution API, PostgreSQL e Redis; a tela de configurações cria a instância, mostra o QR code e ativa o WhatsApp após verificar a conexão.
 - Envio de logo para personalizar as telas de acesso e pesquisa e o e-mail. Aceita PNG, JPG, GIF ou WEBP até 2 MB.
 - Gerenciamento de contas de usuário.
