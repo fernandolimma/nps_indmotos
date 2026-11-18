@@ -268,7 +268,8 @@ class CargaController extends Controller
         $command = sprintf(
             'NPS_PUBLIC_BASE_URL=%s nohup %s %s > /dev/null 2>&1 &',
             escapeshellarg(rtrim($baseUrl, '/')),
-            escapeshellarg(PHP_BINARY),
+            // Sob Apache (mod_php), PHP_BINARY não aponta para o executável CLI.
+            escapeshellarg(is_executable('/usr/local/bin/php') ? '/usr/local/bin/php' : 'php'),
             escapeshellarg($script)
         );
 
