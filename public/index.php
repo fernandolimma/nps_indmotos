@@ -70,6 +70,7 @@ Router::post('/configuracoes/test-evolution', 'ConfiguracoesController@testEvolu
 Router::post('/configuracoes/evolution/create-instance', 'ConfiguracoesController@createEvolutionInstance');
 Router::post('/configuracoes/evolution/refresh-qr', 'ConfiguracoesController@refreshEvolutionQr');
 Router::post('/configuracoes/evolution/confirm-connection', 'ConfiguracoesController@confirmEvolutionConnection');
+Router::post('/configuracoes/evolution/disconnect', 'ConfiguracoesController@disconnectEvolution');
 Router::post('/configuracoes/create-user', 'ConfiguracoesController@createUser');
 Router::post('/configuracoes/(\d+)/update-user', 'ConfiguracoesController@updateUser');
 Router::get('/configuracoes/(\d+)/delete-user', 'ConfiguracoesController@deleteUser');

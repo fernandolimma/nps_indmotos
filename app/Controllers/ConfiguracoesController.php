@@ -202,6 +202,34 @@ class ConfiguracoesController extends Controller
         $this->redirect('/configuracoes');
     }
 
+    public function disconnectEvolution(): void
+    {
+        if (!$this->isPost()) {
+            $this->redirect('/configuracoes');
+        }
+
+        if (!$this->validateCsrfToken($this->getPost('csrf_token'))) {
+            Session::flash('error', 'Token inválido');
+            $this->redirect('/configuracoes');
+        }
+
+        try {
+            $instance = $this->getEvolutionInstanceName($this->configuracao->get());
+            $evolution = $this->getLocalEvolutionApi($instance);
+            if (strtolower($evolution->getConnectionState()) === 'open') {
+                $evolution->logout();
+            }
+            $this->configuracao->update(['evolution_enabled' => 0]);
+            Session::remove('evolution_qr');
+            Session::remove('evolution_pairing_code');
+            Session::flash('success', 'WhatsApp desconectado e envio por WhatsApp desativado.');
+        } catch (\Throwable $e) {
+            Session::flash('error', 'Não foi possível desconectar o WhatsApp: ' . $e->getMessage());
+        }
+
+        $this->redirect('/configuracoes');
+    }
+
     public function createUser(): void
     {
         if (!$this->isPost()) {

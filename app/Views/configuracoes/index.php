@@ -142,6 +142,10 @@
                                 <button type="submit" class="btn btn-primary">Já conectei: ativar WhatsApp</button>
                             </form>
                         <?php endif; ?>
+                        <form action="<?php echo App\Core\Router::baseUrl('/configuracoes/evolution/disconnect'); ?>" method="POST" onsubmit="return confirm('Desconectar o WhatsApp? O envio de pesquisas por WhatsApp será desativado.')">
+                            <input type="hidden" name="csrf_token" value="<?= App\Core\View::escape($csrf_token) ?>">
+                            <button type="submit" class="btn btn-outline-danger">Desconectar WhatsApp</button>
+                        </form>
                     </div>
                 <?php endif; ?>
             </div>

@@ -120,6 +120,13 @@ class EvolutionApi
         return $state;
     }
 
+    public function logout(): void
+    {
+        $url = $this->baseUrl . '/instance/logout/' . rawurlencode($this->instance);
+        [$httpStatus, $response] = $this->request('DELETE', $url);
+        $this->assertSuccessfulResponse($httpStatus, $response);
+    }
+
     public function checkConnection(): string
     {
         $state = $this->getConnectionState();
