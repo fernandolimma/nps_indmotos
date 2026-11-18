@@ -8,6 +8,7 @@ use App\Core\View;
 use App\Models\ClienteOS;
 use App\Models\Configuracao;
 use App\Services\EvolutionApi;
+use App\Services\WhatsappDispatcher;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -85,6 +86,7 @@ class CargaController extends Controller
             ];
 
             $clientesParaImportar = [];
+            $optOut = new \App\Models\WhatsappOptOut();
             
             foreach ($rows as $row) {
                 if (empty($row[array_search('Nº O.S.', $headers)])) continue;
@@ -100,8 +102,10 @@ class CargaController extends Controller
                 if (empty($data['numero_os']) || empty($data['email_cliente'])) continue;
 
                 $telefoneWhatsapp = trim((string) ($data['telefone_whatsapp'] ?? ''));
+                $optOutBloqueado = false;
                 if ($telefoneWhatsapp !== '') {
                     $telefoneWhatsapp = \App\Services\BrazilianPhoneNumber::normalize($telefoneWhatsapp);
+                    $optOutBloqueado = $optOut->isOptedOut($telefoneWhatsapp);
                 }
                 
                 if ($data['data_conclusao']) {
@@ -116,7 +120,7 @@ class CargaController extends Controller
                     'tipo_os' => $data['tipo_os'],
                     'numero_os' => $data['numero_os'],
                     'data_conclusao' => $data['data_conclusao'],
-                    'status_whatsapp' => $telefoneWhatsapp !== '' ? 'nao_enviado' : 'nao_disponivel'
+                    'status_whatsapp' => $telefoneWhatsapp !== '' && !$optOutBloqueado ? 'nao_enviado' : 'nao_disponivel'
                 ];
             }
 
@@ -160,11 +164,9 @@ class CargaController extends Controller
         $clientes = $this->clienteOS->getPendingNotifications();
         $enviadosEmail = 0;
         $falhasEmail = 0;
-        $enviadosWhatsapp = 0;
-        $falhasWhatsapp = 0;
+        $whatsappNaFila = 0;
         $evolution = null;
         $erros = [];
-        $detalheErroWhatsapp = null;
 
         if (!empty($config['evolution_enabled'])) {
             try {
@@ -223,28 +225,22 @@ class CargaController extends Controller
             if (
                 $evolution !== null
                 && !empty($cliente['telefone_whatsapp'])
-                && $cliente['status_whatsapp'] !== 'enviado'
+                && in_array($cliente['status_whatsapp'], ['nao_enviado', 'retornado_erro'], true)
             ) {
-                try {
-                    $linkPesquisa = \App\Core\Router::baseUrl('/pesquisa?token=' . $cliente['token_unico']);
-                    $mensagem = sprintf(
-                        "Olá, %s! Gostaríamos de ouvir sua opinião sobre o atendimento da %s referente à OS %s.\n\nResponda à pesquisa até %s:\n\n%s",
-                        $cliente['nome_cliente'],
-                        View::appName(),
-                        $cliente['numero_os'],
-                        date('d/m/Y', strtotime($cliente['data_limite'])),
-                        $linkPesquisa
-                    );
+                $whatsappNaFila++;
+            }
+        }
 
-                    $evolution->sendText((string) $cliente['telefone_whatsapp'], $mensagem);
-                    $this->clienteOS->updateStatusWhatsapp($cliente['id'], 'enviado');
-                    $enviadosWhatsapp++;
-                } catch (\Throwable $e) {
-                    error_log('Erro ao enviar WhatsApp pela Evolution API para o registro ' . $cliente['id'] . ': ' . $e->getMessage());
-                    $detalheErroWhatsapp ??= $e->getMessage();
-                    $this->clienteOS->updateStatusWhatsapp($cliente['id'], 'retornado_erro');
-                    $falhasWhatsapp++;
-                }
+        $avisoWhatsapp = null;
+        if ($evolution !== null && $whatsappNaFila > 0) {
+            $dispatcher = new WhatsappDispatcher();
+            $bloqueio = $dispatcher->blockReason();
+            if ($bloqueio !== null) {
+                $avisoWhatsapp = "WhatsApp não iniciado: $bloqueio. Os pendentes poderão ser disparados depois";
+            } elseif ($this->startWhatsappWorker()) {
+                $avisoWhatsapp = "$whatsappNaFila WhatsApps na fila, enviados gradualmente em segundo plano com intervalos aleatórios";
+            } else {
+                $erros[] = 'não foi possível iniciar o envio gradual de WhatsApp';
             }
         }
 
@@ -252,12 +248,8 @@ class CargaController extends Controller
         if ($falhasEmail > 0) {
             $erros[] = "$falhasEmail e-mails com erro";
         }
-        if (!empty($config['evolution_enabled'])) {
-            $resumo .= " e $enviadosWhatsapp WhatsApps enviados";
-            if ($falhasWhatsapp > 0) {
-                $erros[] = "$falhasWhatsapp WhatsApps com erro"
-                    . ($detalheErroWhatsapp !== null ? ' (primeiro erro: ' . $detalheErroWhatsapp . ')' : '');
-            }
+        if ($avisoWhatsapp !== null) {
+            $resumo .= '. ' . $avisoWhatsapp;
         }
 
         if ($erros !== []) {
@@ -267,6 +259,22 @@ class CargaController extends Controller
         }
 
         $this->redirect('/carga');
+    }
+
+    private function startWhatsappWorker(): bool
+    {
+        $script = dirname(__DIR__, 2) . '/bin/whatsapp-worker.php';
+        $baseUrl = \App\Core\Router::baseUrl('');
+        $command = sprintf(
+            'NPS_PUBLIC_BASE_URL=%s nohup %s %s > /dev/null 2>&1 &',
+            escapeshellarg(rtrim($baseUrl, '/')),
+            escapeshellarg(PHP_BINARY),
+            escapeshellarg($script)
+        );
+
+        exec($command, $output, $code);
+
+        return $code === 0;
     }
 
     public function limparPendentes(): void

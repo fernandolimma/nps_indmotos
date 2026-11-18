@@ -23,7 +23,8 @@ Aplicação web em PHP para importar ordens de serviço (OS), enviar pesquisas d
 - Opcionalmente, a coluna `Telefone Celular` com DDD para receber a pesquisa por WhatsApp. Na importação, o sistema remove caracteres de formatação e acrescenta o prefixo brasileiro `55` quando ele não foi informado; números fora do padrão brasileiro são rejeitados.
 - Cada registro importado recebe um token exclusivo e uma data limite para resposta, calculada com o prazo configurado.
 - A tela **Carga** apresenta os registros que ainda aguardam envio e permite disparar as pesquisas por e-mail e, quando habilitado, por WhatsApp.
-- Quando a Evolution API estiver habilitada e configurada, o mesmo disparo também envia uma mensagem de texto pelo WhatsApp com o link da pesquisa para os registros com telefone. O status de envio é controlado separadamente por canal; uma falha em um canal não impede a tentativa no outro, e os canais com erro podem ser tentados novamente.
+- Quando a Evolution API estiver habilitada e configurada, o disparo envia os e-mails na hora e coloca os WhatsApps em uma fila processada em segundo plano (`bin/whatsapp-worker.php`), simulando o ritmo humano: intervalos aleatórios de 30 a 90 s entre mensagens, pausas de 5 a 10 min a cada 8–15 envios, indicador de "digitando" antes de cada mensagem, limite diário (80) e janela de envio (08h–20h, fuso America/Sao_Paulo). Ajuste com as variáveis `WHATSAPP_DELAY_MIN/MAX`, `WHATSAPP_BATCH_MIN/MAX`, `WHATSAPP_BATCH_PAUSE_MIN/MAX`, `WHATSAPP_DAILY_LIMIT`, `WHATSAPP_HOUR_START` e `WHATSAPP_HOUR_END` (segundos/horas inteiras). Fora da janela ou do limite, o disparo avisa e os pendentes ficam para um novo disparo. O status de envio é controlado separadamente por canal; os canais com erro podem ser tentados novamente.
+- Cada mensagem de WhatsApp é gerada a partir de vários modelos, com saudação conforme o horário e o primeiro nome do cliente, e inclui instrução de opt-out. Se o cliente responder `SAIR` (ou `PARAR`, `CANCELAR` etc.), um webhook da Evolution (`POST /webhook/whatsapp?key=<AUTHENTICATION_API_KEY>`, configurado automaticamente ao conectar o WhatsApp) registra o número em `whatsapp_optout`, envia uma confirmação e bloqueia envios futuros, inclusive em novas importações.
 - Os e-mails são enviados individualmente, com nome do cliente, número da OS, prazo e link exclusivo para a pesquisa. A logo configurada também pode aparecer no e-mail.
 - O sistema acompanha separadamente os estados de e-mail (`nao_enviado`, `enviado` ou `retornado_erro`) e WhatsApp (`nao_enviado`, `enviado`, `retornado_erro` ou `nao_disponivel`). É possível limpar registros pendentes que ainda não tiveram envio em nenhum canal.
 
@@ -180,5 +181,6 @@ public/
 - `usuarios`: contas, hash de senha e perfil.
 - `configuracoes`: parâmetros SMTP e Evolution API, remetente, logo e validade.
 - `perguntas`: texto, tipo, estado de ativação e ordem.
-- `clientes_os`: dados importados de cliente/OS, telefone opcional, token, prazo e estados de resposta e envio de e-mail/WhatsApp.
+- `clientes_os`: dados importados de cliente/OS, telefone opcional, token, prazo, estados de resposta e envio de e-mail/WhatsApp e data do envio de WhatsApp.
+- `whatsapp_optout`: números que pediram para não receber mais mensagens por WhatsApp.
 - `respostas`: resposta por pergunta e cliente/OS; vinculada às tabelas correspondentes por chaves estrangeiras.

@@ -148,6 +148,7 @@ class ConfiguracoesController extends Controller
             $evolution = $this->getLocalEvolutionApi($instance);
             $this->saveLocalEvolutionSettings($instance);
             if (strtolower($evolution->getConnectionState()) === 'open') {
+                $this->registerOptOutWebhook($evolution);
                 $this->configuracao->update([
                     'evolution_enabled' => 1,
                     'evolution_url' => $this->getLocalEvolutionApiUrl(),
@@ -186,6 +187,7 @@ class ConfiguracoesController extends Controller
             $instance = $this->getEvolutionInstanceName($this->configuracao->get());
             $evolution = $this->getLocalEvolutionApi($instance);
             $evolution->checkConnection();
+            $this->registerOptOutWebhook($evolution);
             $this->configuracao->update([
                 'evolution_enabled' => 1,
                 'evolution_url' => $this->getLocalEvolutionApiUrl(),
@@ -315,6 +317,17 @@ class ConfiguracoesController extends Controller
         $this->usuario->delete($id);
         Session::flash('success', 'Usuário removido com sucesso!');
         $this->redirect('/configuracoes');
+    }
+
+    private function registerOptOutWebhook(\App\Services\EvolutionApi $evolution): void
+    {
+        try {
+            $evolution->setWebhook(
+                'http://nps-app/webhook/whatsapp?key=' . rawurlencode((string) getenv('AUTHENTICATION_API_KEY'))
+            );
+        } catch (\Throwable $e) {
+            error_log('Webhook de descadastro não configurado: ' . $e->getMessage());
+        }
     }
 
     private function getEvolutionInstanceName(?array $config): string

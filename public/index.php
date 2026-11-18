@@ -42,6 +42,7 @@ Router::post('/login/authenticate', 'AuthController@authenticate');
 Router::get('/logout', 'AuthController@logout');
 
 Router::get('/pesquisa', 'PesquisaController@index');
+Router::post('/webhook/whatsapp', 'WebhookController@whatsapp');
 Router::post('/pesquisa/submit', 'PesquisaController@submit');
 
 // Rotas administrativas

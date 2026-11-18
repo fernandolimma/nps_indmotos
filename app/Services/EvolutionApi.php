@@ -24,14 +24,18 @@ class EvolutionApi
         }
     }
 
-    public function sendText(string $phone, string $message): void
+    public function sendText(string $phone, string $message, int $typingDelayMs = 0): void
     {
         $number = BrazilianPhoneNumber::normalize($phone);
         $url = $this->baseUrl . '/message/sendText/' . rawurlencode($this->instance);
-        $payload = json_encode([
+        $body = [
             'number' => $number,
             'text' => $message
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ];
+        if ($typingDelayMs > 0) {
+            $body['delay'] = $typingDelayMs;
+        }
+        $payload = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         if ($payload === false) {
             throw new RuntimeException('Não foi possível preparar a mensagem de WhatsApp.');
@@ -118,6 +122,27 @@ class EvolutionApi
         }
 
         return $state;
+    }
+
+    public function setWebhook(string $webhookUrl): void
+    {
+        $payload = json_encode([
+            'webhook' => [
+                'enabled' => true,
+                'url' => $webhookUrl,
+                'byEvents' => false,
+                'base64' => false,
+                'events' => ['MESSAGES_UPSERT']
+            ]
+        ], JSON_UNESCAPED_SLASHES);
+
+        if ($payload === false) {
+            throw new RuntimeException('Não foi possível preparar a configuração do webhook.');
+        }
+
+        $url = $this->baseUrl . '/webhook/set/' . rawurlencode($this->instance);
+        [$httpStatus, $response] = $this->request('POST', $url, $payload);
+        $this->assertSuccessfulResponse($httpStatus, $response);
     }
 
     public function logout(): void

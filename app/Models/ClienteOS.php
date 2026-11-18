@@ -27,6 +27,54 @@ class ClienteOS
                 "ALTER TABLE clientes_os ADD COLUMN status_whatsapp ENUM('nao_enviado', 'enviado', 'retornado_erro', 'nao_disponivel') NOT NULL DEFAULT 'nao_disponivel' AFTER status_email"
             );
         }
+
+        if (!$this->db->columnExists('clientes_os', 'whatsapp_enviado_em')) {
+            $this->db->query(
+                'ALTER TABLE clientes_os ADD COLUMN whatsapp_enviado_em DATETIME NULL'
+            );
+        }
+    }
+
+    public function getWhatsappPending(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT id
+             FROM clientes_os
+             WHERE status_whatsapp IN ('nao_enviado', 'retornado_erro')
+               AND telefone_whatsapp IS NOT NULL
+               AND telefone_whatsapp <> ''
+             ORDER BY data_importacao, id"
+        );
+    }
+
+    public function countWhatsappSentToday(): int
+    {
+        $result = $this->db->fetchOne(
+            'SELECT COUNT(*) AS total FROM clientes_os WHERE DATE(whatsapp_enviado_em) = ?',
+            [date('Y-m-d')]
+        );
+
+        return (int) ($result['total'] ?? 0);
+    }
+
+    public function markWhatsappUnavailableByPhone(string $key): void
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT id, telefone_whatsapp
+             FROM clientes_os
+             WHERE status_whatsapp IN ('nao_enviado', 'retornado_erro')
+               AND telefone_whatsapp IS NOT NULL AND telefone_whatsapp <> ''"
+        );
+
+        foreach ($rows as $row) {
+            try {
+                if (WhatsappOptOut::key((string) $row['telefone_whatsapp']) === $key) {
+                    $this->updateStatusWhatsapp((int) $row['id'], 'nao_disponivel');
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
     }
 
     public function create(array $data): int
@@ -104,7 +152,9 @@ class ClienteOS
     {
         return $this->db->update(
             'clientes_os',
-            ['status_whatsapp' => $status],
+            $status === 'enviado'
+                ? ['status_whatsapp' => $status, 'whatsapp_enviado_em' => date('Y-m-d H:i:s')]
+                : ['status_whatsapp' => $status],
             'id = :id',
             ['id' => $id]
         );
